@@ -11,6 +11,9 @@ using DustInTheWind.ConsoleTools.Controls.Spinners;
 
 internal static class Dotnet
 {
+	private static Collection<Solution> CachedSolutions { get; set; } = [];
+	private static Collection<Solution> CachedSortedSolutions { get; set; } = [];
+
 	internal static Collection<string> BuildSolution()
 	{
 		var results = PowerShell.Create()
@@ -258,6 +261,11 @@ internal static class Dotnet
 
 	internal static Collection<Solution> SortSolutionsByDependencies(ICollection<Solution> solutions)
 	{
+		if (CachedSortedSolutions.Count > 0)
+		{
+			return CachedSortedSolutions;
+		}
+
 		var unsatisfiedSolutions = solutions.ToCollection();
 		var sortedSolutions = new Collection<Solution>();
 
@@ -278,6 +286,8 @@ internal static class Dotnet
 			}
 		}
 
+		CachedSortedSolutions = sortedSolutions;
+
 		return sortedSolutions;
 	}
 
@@ -292,7 +302,14 @@ internal static class Dotnet
 	internal static Collection<Solution> DiscoverSolutions(AbsoluteDirectoryPath root)
 	{
 		Console.WriteLine($"Discovering solutions in {root}");
-		return DiscoverSolutionDependencies(DiscoverSolutionFiles(root));
+		if (CachedSolutions.Count > 0)
+		{
+			return CachedSolutions;
+		}
+
+		CachedSolutions = DiscoverSolutionDependencies(DiscoverSolutionFiles(root));
+
+		return CachedSolutions;
 	}
 
 	internal static bool IsSolutionNested(AbsoluteFilePath solutionPath)
@@ -311,6 +328,4 @@ internal static class Dotnet
 
 		return false;
 	}
-
-	internal static void ClearLine() => Console.Write("\r\u001b[2K");
 }
