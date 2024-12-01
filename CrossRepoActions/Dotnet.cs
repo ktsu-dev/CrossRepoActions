@@ -21,7 +21,7 @@ internal static class Dotnet
 		return GetErrors(results);
 	}
 
-	internal static PowerShell MakeTestsInvoker()
+	internal static IEnumerable<string> RunTests()
 	{
 		var ps = PowerShell.Create()
 			.AddCommand("dotnet")
@@ -30,7 +30,7 @@ internal static class Dotnet
 			.AddArgument("/logger:console;verbosity=normal")
 			.AddArgument("--nologo");
 
-		return ps;
+		return ps.InvokeAndReturnOutput(PowershellStreams.All);
 	}
 
 	internal static IEnumerable<string> RunSingleTestAndReturnErrors(string testName)

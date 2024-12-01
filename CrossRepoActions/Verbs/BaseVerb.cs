@@ -1,4 +1,4 @@
-namespace ktsu.CrossRepoActions;
+namespace ktsu.CrossRepoActions.Verbs;
 
 using CommandLine;
 using ktsu.Extensions;

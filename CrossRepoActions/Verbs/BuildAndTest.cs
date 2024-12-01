@@ -1,8 +1,8 @@
-namespace ktsu.CrossRepoActions;
+namespace ktsu.CrossRepoActions.Verbs;
 
 using System.Collections.ObjectModel;
-using System.Management.Automation;
 using CommandLine;
+using ktsu.CrossRepoActions;
 using ktsu.Extensions;
 using ktsu.StrongPaths;
 
@@ -49,94 +49,39 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 				continue;
 			}
 
-			var testInvoker = Dotnet.MakeTestsInvoker();
-			var testOutput = new PSDataCollection<PSObject>();
-			testOutput.DataAdded += (s, e) =>
-			{
-				if (s is PSDataCollection<PSObject> data)
+			var testOutput = Dotnet.RunTests();
+			testOutput = testOutput
+				.Where(l => l.EndsWithOrdinal("]"))
+				.Select(s =>
 				{
-					var newRecord = data[e.Index];
-					string stringRecord = newRecord.ToString().Trim();
-					if (stringRecord.EndsWithOrdinal("]"))
+					string[] parts = s.Split(' ');
+					string statusString = parts[0];
+					string testName = parts[1];
+					string timeString = parts[2];
+					var status = statusString switch
 					{
-						string[] parts = stringRecord.Split(' ');
-						string statusString = parts[0];
-						string testName = parts[1];
-						string timeString = parts[2];
-						var status = statusString switch
-						{
-							"Passed" => Status.Success,
-							"Failed" => Status.Error,
-							_ => Status.InProgress,
-						};
-						OutputTestStatus(testName, status);
-						if (status == Status.Error)
-						{
-							errorSummary.Add($"\t❌ {testName}");
-						}
-					}
-				}
-			};
+						"Passed" => Status.Success,
+						"Failed" => Status.Error,
+						_ => Status.InProgress,
+					};
+					return $"\t{GetTestStatusIndicator(status)} {testName}";
+				});
 
-			testInvoker.Streams.Error.DataAdded += (s, e) =>
+			testOutput.ForEach(s =>
 			{
-				if (s is PSDataCollection<ErrorRecord> data)
+				Console.WriteLine(s);
+				if (s.Contains(GetTestStatusIndicator(Status.Error)))
 				{
-					var newRecord = data[e.Index];
-					Console.WriteLine("[ERROR]" + newRecord.ToString());
+					string[] parts = s.Split(' ');
+					errorSummary.Add($"{parts[0]} {solution.Name}{parts[1]}");
 				}
-			};
-
-			testInvoker.Streams.Information.DataAdded += (s, e) =>
-			{
-				if (s is PSDataCollection<InformationRecord> data)
-				{
-					var newRecord = data[e.Index];
-					Console.WriteLine("[INFO]" + newRecord.ToString());
-				}
-			};
-
-			testInvoker.Streams.Progress.DataAdded += (s, e) =>
-			{
-				if (s is PSDataCollection<ProgressRecord> data)
-				{
-					var newRecord = data[e.Index];
-					Console.WriteLine("[PROGRESS]" + newRecord.ToString());
-				}
-			};
-
-			testInvoker.Streams.Verbose.DataAdded += (s, e) =>
-			{
-				if (s is PSDataCollection<VerboseRecord> data)
-				{
-					var newRecord = data[e.Index];
-					Console.WriteLine("[VERBOSE]" + newRecord.ToString());
-				}
-			};
-
-			testInvoker.Streams.Warning.DataAdded += (s, e) =>
-			{
-				if (s is PSDataCollection<WarningRecord> data)
-				{
-					var newRecord = data[e.Index];
-					Console.WriteLine("[WARNING]" + newRecord.ToString());
-				}
-			};
-
-			var input = new PSDataCollection<PSObject>();
-			input.Complete();
-			var task = testInvoker.BeginInvoke(input, testOutput);
-			while (!task.IsCompleted)
-			{
-				Thread.Sleep(1000);
-			}
-			testInvoker.EndInvoke(task);
+			});
 
 			Directory.SetCurrentDirectory(cwd);
 		}
 
 		Console.WriteLine();
-		errorSummary.ForEach(Console.WriteLine);
+		errorSummary.WriteItemsToConsole();
 	}
 
 	private static string GetBuildStatusIndicator(Status status) => status switch
@@ -165,9 +110,6 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 
 	private static void OutputBuildStatus(AbsoluteFilePath solutionFilePath, Status status, int numTests) =>
 		Console.Write($"\r {GetBuildStatusIndicator(status)} {System.IO.Path.GetFileName(solutionFilePath)} ({numTests} tests found){GetLineEnding(status)}");
-
-	private static void OutputTestStatus(string testName, Status status) =>
-		Console.Write($"\t{GetTestStatusIndicator(status)} {testName}\n");
 
 	internal static void HideCursor() => Console.Write("\u001b[?25l");
 	internal static void ShowCursor() => Console.Write("\u001b[?25h");

@@ -9,6 +9,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text;
 using CommandLine;
+using ktsu.CrossRepoActions.Verbs;
 
 internal static class Program
 {
