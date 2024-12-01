@@ -1,4 +1,6 @@
 namespace ktsu.CrossRepoActions;
+
+using System.Collections.ObjectModel;
 using System.Management.Automation;
 using CommandLine;
 using ktsu.Extensions;
@@ -19,7 +21,9 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 		var solutions = Dotnet.DiscoverSolutions(options.Path);
 		var sortedSolutions = Dotnet.SortSolutionsByDependencies(solutions);
 		var packages = solutions.SelectMany(s => s.Packages);
-		sortedSolutions.ForEach(s => Console.WriteLine($"{s.Name} ({string.Join(", ", packages.IntersectBy(s.Dependencies.Select(p => p.Name), p => p.Name).Select(p => p.Name))})"));
+		//sortedSolutions.ForEach(s => Console.WriteLine($"{s.Name} ({string.Join(", ", packages.IntersectBy(s.Dependencies.Select(p => p.Name), p => p.Name).Select(p => p.Name))})"));
+
+		var errorSummary = new Collection<string>();
 
 		foreach (var solution in sortedSolutions)
 		{
@@ -32,6 +36,7 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 			if (buildErrors.Any())
 			{
 				OutputBuildStatus(solution.Path, Status.Error, 0);
+				errorSummary.Add($"❌ {solution.Name}");
 				continue;
 			}
 
@@ -65,6 +70,10 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 							_ => Status.InProgress,
 						};
 						OutputTestStatus(testName, status);
+						if (status == Status.Error)
+						{
+							errorSummary.Add($"\t❌ {testName}");
+						}
 					}
 				}
 			};
@@ -125,6 +134,9 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 
 			Directory.SetCurrentDirectory(cwd);
 		}
+
+		Console.WriteLine();
+		errorSummary.ForEach(Console.WriteLine);
 	}
 
 	private static string GetBuildStatusIndicator(Status status) => status switch
