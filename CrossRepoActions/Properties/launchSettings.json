@@ -2,7 +2,7 @@
   "profiles": {
     "CrossRepoActions": {
       "commandName": "Project",
-      "commandLineArgs": "GitPull -p c:/dev/ktsu-dev"
+      "commandLineArgs": "-p c:/dev/ktsu-dev"
     }
   }
 }

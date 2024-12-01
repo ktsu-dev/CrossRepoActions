@@ -9,6 +9,7 @@ internal static class Git
 {
 	internal static IEnumerable<AbsoluteDirectoryPath> DiscoverRepositories(AbsoluteDirectoryPath root)
 	{
+		Console.WriteLine($"Discovering repositories in {root}");
 		return Directory.EnumerateDirectories(root, ".git", SearchOption.AllDirectories)
 		.Select(p => p.As<AbsoluteDirectoryPath>().Parent);
 	}

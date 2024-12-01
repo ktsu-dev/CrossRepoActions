@@ -6,7 +6,7 @@ using ktsu.CrossRepoActions;
 using ktsu.Extensions;
 using ktsu.StrongPaths;
 
-[Verb("BuildAndTest", isDefault: true)]
+[Verb("BuildAndTest")]
 internal class BuildAndTest : BaseVerb<BuildAndTest>
 {
 	private enum Status
@@ -32,17 +32,39 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 
 			OutputBuildStatus(solution.Path, Status.InProgress, 0);
 
-			var buildErrors = Dotnet.BuildAndReturnErrors();
-			if (buildErrors.Any())
+			var solutionErrors = new Collection<string>();
+			var projectStatuses = new Collection<string>();
+			var projectErrors = new Collection<string>();
+
+			foreach (var project in solution.Projects)
+			{
+				var results = Dotnet.BuildProject(project);
+				solutionErrors.AddMany(results);
+				if (results.Count != 0)
+				{
+					projectStatuses.Add($"\t❌ {project.FileName}");
+					projectErrors.Add($"\t❌ {project.FileName}");
+				}
+				else
+				{
+					projectStatuses.Add($"\t✅ {project.FileName}");
+				}
+			}
+
+			if (solutionErrors.Count != 0)
 			{
 				OutputBuildStatus(solution.Path, Status.Error, 0);
+				projectStatuses.WriteItemsToConsole();
 				errorSummary.Add($"❌ {solution.Name}");
+				errorSummary.AddMany(projectErrors);
+				solutionErrors.WriteItemsToConsole();
 				continue;
 			}
 
 			var tests = Dotnet.GetTests();
-			int numTests = tests.Count();
+			int numTests = tests.Count;
 			OutputBuildStatus(solution.Path, Status.Success, numTests);
+			projectStatuses.WriteItemsToConsole();
 
 			if (numTests == 0)
 			{
@@ -51,7 +73,7 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 
 			var testOutput = Dotnet.RunTests();
 			testOutput = testOutput
-				.Where(l => l.EndsWithOrdinal("]"))
+				.Where(l => l.EndsWithOrdinal("]") && (l.Contains("Passed") || l.Contains("Failed")))
 				.Select(s =>
 				{
 					string[] parts = s.Split(' ');
@@ -64,8 +86,12 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 						"Failed" => Status.Error,
 						_ => Status.InProgress,
 					};
-					return $"\t{GetTestStatusIndicator(status)} {testName}";
-				});
+
+					return status == Status.InProgress
+						? s
+						: $"\t{GetTestStatusIndicator(status)} {testName}";
+				})
+				.ToCollection();
 
 			testOutput.ForEach(s =>
 			{
@@ -73,7 +99,7 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 				if (s.Contains(GetTestStatusIndicator(Status.Error)))
 				{
 					string[] parts = s.Split(' ');
-					errorSummary.Add($"{parts[0]} {solution.Name}{parts[1]}");
+					errorSummary.Add($"{parts[0]} {solution.Name}.{parts[1]}");
 				}
 			});
 
@@ -108,12 +134,9 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 		_ => throw new ArgumentOutOfRangeException(nameof(status), status, null),
 	};
 
-	private static void OutputBuildStatus(AbsoluteFilePath solutionFilePath, Status status, int numTests) =>
-		Console.Write($"\r {GetBuildStatusIndicator(status)} {System.IO.Path.GetFileName(solutionFilePath)} ({numTests} tests found){GetLineEnding(status)}");
-
-	internal static void HideCursor() => Console.Write("\u001b[?25l");
-	internal static void ShowCursor() => Console.Write("\u001b[?25h");
-	internal static void ClearLine() => Console.Write("\u001b[2K");
-	internal static void MoveCursorUp(int lines = 1) => Console.Write($"\u001b[{lines}A");
-	internal static void MoveCursorDown(int lines = 1) => Console.Write($"\u001b[{lines}B");
+	private static void OutputBuildStatus(AbsoluteFilePath solutionFilePath, Status status, int numTests)
+	{
+		string test = numTests > 0 ? $" ({numTests} tests found)" : "";
+		Console.Write($"\r {GetBuildStatusIndicator(status)} {System.IO.Path.GetFileName(solutionFilePath)}{test}{GetLineEnding(status)}");
+	}
 }

@@ -1,8 +1,8 @@
 namespace ktsu.CrossRepoActions;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Management.Automation;
+using ktsu.Extensions;
 
 [Flags]
 internal enum PowershellStreams
@@ -20,7 +20,7 @@ internal enum PowershellStreams
 
 internal static class PowershellExtensions
 {
-	internal static IEnumerable<string> InvokeAndReturnOutput(this PowerShell ps, PowershellStreams streams = PowershellStreams.Default)
+	internal static Collection<string> InvokeAndReturnOutput(this PowerShell ps, PowershellStreams streams = PowershellStreams.Default)
 	{
 		var input = new PSDataCollection<PSObject>();
 		input.Complete();
@@ -130,6 +130,6 @@ internal static class PowershellExtensions
 
 		ps.Invoke(input, stdOutput);
 
-		return collectedOutput;
+		return collectedOutput.Select(s => s.Trim()).ToCollection();
 	}
 }

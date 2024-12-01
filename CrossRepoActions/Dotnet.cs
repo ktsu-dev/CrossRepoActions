@@ -6,22 +6,35 @@ using System.Management.Automation;
 using ktsu.StrongPaths;
 using ktsu.Extensions;
 using System.Collections.Concurrent;
+using NuGet.Versioning;
+using DustInTheWind.ConsoleTools.Controls.Spinners;
 
 internal static class Dotnet
 {
-	internal static IEnumerable<string> BuildAndReturnErrors()
+	internal static Collection<string> BuildSolution()
 	{
 		var results = PowerShell.Create()
 			.AddCommand("dotnet")
 			.AddArgument("build")
 			.AddArgument("--nologo")
-			.Invoke()
-			.Select(o => o.ToString());
+			.InvokeAndReturnOutput();
 
 		return GetErrors(results);
 	}
 
-	internal static IEnumerable<string> RunTests()
+	internal static Collection<string> BuildProject(AbsoluteFilePath projectFile)
+	{
+		var results = PowerShell.Create()
+			.AddCommand("dotnet")
+			.AddArgument("build")
+			.AddArgument("--nologo")
+			.AddArgument(projectFile.ToString())
+			.InvokeAndReturnOutput();
+
+		return GetErrors(results);
+	}
+
+	internal static Collection<string> RunTests()
 	{
 		var ps = PowerShell.Create()
 			.AddCommand("dotnet")
@@ -33,22 +46,7 @@ internal static class Dotnet
 		return ps.InvokeAndReturnOutput(PowershellStreams.All);
 	}
 
-	internal static IEnumerable<string> RunSingleTestAndReturnErrors(string testName)
-	{
-		var results = PowerShell.Create()
-			.AddCommand("dotnet")
-			.AddArgument("test")
-			.AddArgument("--nologo")
-			.AddArgument("--no-build")
-			.AddArgument("--filter")
-			.AddArgument(testName)
-			.Invoke()
-			.Select(o => o.ToString());
-
-		return GetErrors(results);
-	}
-
-	internal static IEnumerable<string> GetTests()
+	internal static Collection<string> GetTests()
 	{
 		var results = PowerShell.Create()
 			.AddCommand("dotnet")
@@ -56,44 +54,44 @@ internal static class Dotnet
 			.AddArgument("--ListTests")
 			.AddArgument("--nologo")
 			.AddArgument("**/bin/**/*Test.dll")
-			.Invoke();
+			.InvokeAndReturnOutput();
 
 		var stringResults = results
-			.Select(o => o.ToString())
-			.Where(r => r != r.Trim());
+			.Where(r => !r.StartsWith("The following") && !r.StartsWith("No test source"))
+			.ToCollection();
 
 		return stringResults;
 	}
 
-	internal static IEnumerable<string> GetProjects(AbsoluteFilePath solutionFile)
+	internal static Collection<string> GetProjects(AbsoluteFilePath solutionFile)
 	{
 		var results = PowerShell.Create()
 			.AddCommand("dotnet")
 			.AddArgument("sln")
-			.AddArgument(Path.GetFullPath(solutionFile))
+			.AddArgument(solutionFile.ToString())
 			.AddArgument("list")
-			.Invoke();
+			.InvokeAndReturnOutput();
 
 		var stringResults = results
-			.Select(o => o.ToString().Trim())
-			.Where(r => r.EndsWithOrdinal(".csproj"));
+			.Where(r => r.EndsWithOrdinal(".csproj"))
+			.ToCollection();
 
 		return stringResults;
 	}
 
-	internal static IEnumerable<Package> GetSolutionDependencies(AbsoluteFilePath solutionFile)
+	internal static Collection<Package> GetSolutionDependencies(AbsoluteFilePath solutionFile)
 	{
 		var results = PowerShell.Create()
 			.AddCommand("dotnet")
 			.AddArgument("list")
-			.AddArgument(Path.GetFullPath(solutionFile))
+			.AddArgument(solutionFile.ToString())
 			.AddArgument("package")
 			.AddArgument("--include-transitive")
-			.Invoke();
+			.InvokeAndReturnOutput();
 
 		var stringResults = results
-			.Select(o => o.ToString().Trim())
-			.Where(r => r.StartsWithOrdinal(">"));
+			.Where(r => r.StartsWithOrdinal(">"))
+			.ToCollection();
 
 		var dependencies = stringResults
 			.Select(r =>
@@ -102,85 +100,157 @@ internal static class Dotnet
 				return new Package()
 				{
 					Name = parts[1],
-					Version = parts.Last(),
+					Version = NuGetVersion.Parse(parts.Last()),
 				};
-			});
-
+			})
+			.ToCollection();
 
 		return dependencies;
 	}
 
-	internal static string GetAssemblyName(AbsoluteFilePath projectFile)
+	internal static Collection<Package> GetProjectDependencies(AbsoluteFilePath projectFile)
+	{
+		var results = PowerShell.Create()
+			.AddCommand("dotnet")
+			.AddArgument("list")
+			.AddArgument(projectFile.ToString())
+			.AddArgument("package")
+			.InvokeAndReturnOutput();
+
+		var stringResults = results
+			.Where(r => r.StartsWithOrdinal(">"))
+			.ToCollection();
+
+		var dependencies = stringResults
+			.Select(r =>
+			{
+				string[] parts = r.Split(' ');
+				return new Package()
+				{
+					Name = parts[1],
+					Version = NuGetVersion.Parse(parts.Last()),
+				};
+			})
+			.ToCollection();
+
+		return dependencies;
+	}
+
+	internal static Collection<string> UpdatePackages(AbsoluteFilePath projectFile)
+	{
+		var output = new Collection<string>();
+		var dependencies = GetProjectDependencies(projectFile);
+		foreach (var dependency in dependencies)
+		{
+			var ps = PowerShell.Create()
+				.AddCommand("dotnet")
+				.AddArgument("add")
+				.AddArgument(projectFile.ToString())
+				.AddArgument("package")
+				.AddArgument(dependency.Name);
+
+			bool isPreRelease = dependency.Version.IsPrerelease;
+			if (isPreRelease)
+			{
+				ps = ps.AddArgument("--prerelease");
+			}
+
+			output.AddMany(ps.InvokeAndReturnOutput());
+		}
+
+		return output;
+	}
+
+	internal static string GetProjectAssemblyName(AbsoluteFilePath projectFile)
 	{
 		var results = PowerShell.Create()
 			.AddCommand("dotnet")
 			.AddArgument("msbuild")
-			.AddArgument(Path.GetFullPath(projectFile))
+			.AddArgument(projectFile.ToString())
 			.AddArgument("-getProperty:AssemblyName")
-			.Invoke();
+			.InvokeAndReturnOutput();
 
-		var stringResults = results
-			.Select(o => o.ToString().Trim());
-
-		return stringResults.First();
+		return results.First();
 	}
 
-	internal static string GetAssemblyVersion(AbsoluteFilePath projectFile)
+	internal static NuGetVersion GetProjectVersion(AbsoluteFilePath projectFile)
 	{
 		var results = PowerShell.Create()
 			.AddCommand("dotnet")
 			.AddArgument("msbuild")
-			.AddArgument(Path.GetFullPath(projectFile))
+			.AddArgument(projectFile.ToString())
 			.AddArgument("-getProperty:Version")
-			.Invoke();
+			.InvokeAndReturnOutput();
 
-		var stringResults = results
-			.Select(o => o.ToString().Trim());
-
-		return stringResults.First();
+		return NuGetVersion.Parse(results.First());
 	}
 
-	internal static Package GetAssemblyPackage(AbsoluteFilePath projectFile)
+	internal static bool IsProjectPackable(AbsoluteFilePath projectFile)
+	{
+		var results = PowerShell.Create()
+			.AddCommand("dotnet")
+			.AddArgument("msbuild")
+			.AddArgument(projectFile.ToString())
+			.AddArgument("-getProperty:IsPackable")
+			.InvokeAndReturnOutput();
+
+		return bool.Parse(results.First());
+	}
+
+	internal static Package GetProjectPackage(AbsoluteFilePath projectFile)
 	{
 		return new Package()
 		{
-			Name = GetAssemblyName(Path.GetFullPath(projectFile).As<AbsoluteFilePath>()),
-			Version = GetAssemblyVersion(Path.GetFullPath(projectFile).As<AbsoluteFilePath>())
+			Name = GetProjectAssemblyName(projectFile),
+			Version = GetProjectVersion(projectFile)
 		};
 	}
 
-	internal static IEnumerable<string> GetErrors(IEnumerable<string> strings) =>
+	internal static Collection<string> GetErrors(IEnumerable<string> strings) =>
 		strings.Where(r => (r.Contains("error") || r.Contains("failed"))
-						&& !(r.Contains("passed") || r.Contains("0 Error")));
+						&& !(r.Contains("passed") || r.Contains("0 Error")))
+			.ToCollection();
 
 	private static object ConsoleLock { get; } = new();
 	internal static Collection<Solution> DiscoverSolutionDependencies(IEnumerable<AbsoluteFilePath> solutionFiles)
 	{
 		var solutionFileCollection = solutionFiles.ToCollection();
 		var solutions = new ConcurrentBag<Solution>();
+
+		var progressBar = new ProgressBar();
+		progressBar.Display();
+
 		_ = Parallel.ForEach(solutionFileCollection, solutionFile =>
 		{
-			var projects = GetProjects(solutionFile).ToCollection();
-			var packages = projects.Select(p => GetAssemblyPackage(solutionFile.DirectoryPath / p.As<RelativeFilePath>())).ToCollection();
-			var dependencies = GetSolutionDependencies(solutionFile).ToCollection();
-			lock (ConsoleLock)
-			{
-				Console.WriteLine($"\nFound {solutionFile} with:");
-				Console.WriteLine("  Packages:");
-				packages.ForEach(p => Console.WriteLine($"    {p.Name} {p.Version}"));
-				Console.WriteLine("  Dependencies:");
-				dependencies.ForEach(d => Console.WriteLine($"    {d.Name} {d.Version}"));
-			}
+			var projects = GetProjects(solutionFile)
+				.Select(p => solutionFile.DirectoryPath / p.As<RelativeFilePath>())
+				.ToCollection();
+
+			var packages = projects
+				.Where(p => IsProjectPackable(p))
+				.Select(p => GetProjectPackage(p))
+				.ToCollection();
+
+			var dependencies = GetSolutionDependencies(solutionFile);
+
 			var solution = new Solution()
 			{
 				Name = Path.GetFileNameWithoutExtension(solutionFile.FileName),
 				Path = solutionFile,
-				Packages = packages.ToCollection(),
-				Dependencies = dependencies.ToCollection(),
+				Projects = projects,
+				Packages = packages,
+				Dependencies = dependencies,
 			};
 			solutions.Add(solution);
+
+			lock (ConsoleLock)
+			{
+				progressBar.Value = (int)Math.Round(solutions.Count / (float)solutionFileCollection.Count * 100);
+				progressBar.Display();
+			}
 		});
 
+		Console.WriteLine();
 		Console.WriteLine();
 
 		return solutions.ToCollection();
@@ -211,11 +281,12 @@ internal static class Dotnet
 		return sortedSolutions;
 	}
 
-	internal static IEnumerable<AbsoluteFilePath> DiscoverSolutionFiles(AbsoluteDirectoryPath root)
+	internal static Collection<AbsoluteFilePath> DiscoverSolutionFiles(AbsoluteDirectoryPath root)
 	{
 		return Directory.EnumerateFiles(root, "*.sln", SearchOption.AllDirectories)
 		.Select(p => p.As<AbsoluteFilePath>())
-		.Where(p => !IsSolutionNested(p));
+		.Where(p => !IsSolutionNested(p))
+		.ToCollection();
 	}
 
 	internal static Collection<Solution> DiscoverSolutions(AbsoluteDirectoryPath root)
@@ -240,4 +311,6 @@ internal static class Dotnet
 
 		return false;
 	}
+
+	internal static void ClearLine() => Console.Write("\r\u001b[2K");
 }

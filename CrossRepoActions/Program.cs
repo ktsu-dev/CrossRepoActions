@@ -5,7 +5,6 @@
 
 namespace ktsu.CrossRepoActions;
 
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text;
 using CommandLine;
@@ -13,21 +12,18 @@ using ktsu.CrossRepoActions.Verbs;
 
 internal static class Program
 {
+	internal static Type[] Verbs { get; } = LoadVerbs();
 	internal static PersistentState Settings { get; set; } = new();
 
-	[RequiresUnreferencedCode("Calls ktsu.CrossRepoActions.Program.LoadVerbs()")]
 	private static void Main(string[] args)
 	{
 		Console.OutputEncoding = Encoding.UTF8;
 		Settings = PersistentState.LoadOrCreate();
 
-		var types = LoadVerbs();
-
-		_ = Parser.Default.ParseArguments(args, types)
+		_ = Parser.Default.ParseArguments(args, Verbs)
 			.WithParsed<BaseVerb>(task => task.Run());
 	}
 
-	[RequiresUnreferencedCode("Calls System.Reflection.Assembly.GetTypes()")]
 	private static Type[] LoadVerbs()
 	{
 		return Assembly.GetExecutingAssembly().GetTypes()
