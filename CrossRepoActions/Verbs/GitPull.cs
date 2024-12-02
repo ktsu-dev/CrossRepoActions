@@ -11,7 +11,11 @@ internal class GitPull : BaseVerb<GitPull>
 	{
 		var errorSummary = new ConcurrentBag<string>();
 		var repos = Git.DiscoverRepositories(options.Path);
-		_ = Parallel.ForEach(repos, repo =>
+		_ = Parallel.ForEach(repos, new()
+		{
+			MaxDegreeOfParallelism = Program.MaxParallelism,
+		},
+		repo =>
 		{
 			var output = Git.Pull(repo);
 			//output.WriteItemsToConsole();

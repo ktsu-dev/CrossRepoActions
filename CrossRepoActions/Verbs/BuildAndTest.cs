@@ -19,13 +19,9 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 	internal override void Run(BuildAndTest options)
 	{
 		var solutions = Dotnet.DiscoverSolutions(options.Path);
-		var sortedSolutions = Dotnet.SortSolutionsByDependencies(solutions);
-		var packages = solutions.SelectMany(s => s.Packages);
-		//sortedSolutions.ForEach(s => Console.WriteLine($"{s.Name} ({string.Join(", ", packages.IntersectBy(s.Dependencies.Select(p => p.Name), p => p.Name).Select(p => p.Name))})"));
-
 		var errorSummary = new Collection<string>();
 
-		foreach (var solution in sortedSolutions)
+		foreach (var solution in solutions)
 		{
 			string cwd = Directory.GetCurrentDirectory();
 			Directory.SetCurrentDirectory(solution.Path.DirectoryPath);

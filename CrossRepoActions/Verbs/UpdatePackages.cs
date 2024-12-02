@@ -11,74 +11,100 @@ internal class UpdatePackages : BaseVerb<UpdatePackages>
 	private static object ConsoleLock { get; } = new();
 	internal override void Run(UpdatePackages options)
 	{
-		var errorSummary = new ConcurrentBag<string>();
-		var solutions = Dotnet.DiscoverSolutions(options.Path);
-		var sortedSolutions = Dotnet.SortSolutionsByDependencies(solutions);
-
-		_ = Parallel.ForEach(sortedSolutions, solution =>
+		while (true)
 		{
-			foreach (var project in solution.Projects)
+			var errorSummary = new ConcurrentBag<string>();
+			var solutions = Dotnet.DiscoverSolutions(options.Path);
+
+			_ = Parallel.ForEach(solutions, new()
 			{
-				var results = Dotnet.UpdatePackages(project);
-				var upToDate = new Collection<Package>();
-				var updated = new Collection<Package>();
-				var errored = new Collection<Package>();
-				var errorLines = new Collection<string>();
-				foreach (var dependency in solution.Dependencies)
+				MaxDegreeOfParallelism = Program.MaxParallelism,
+			},
+			solution =>
+			{
+				try
 				{
-					var dependencyErrors = results.Where(s => s.Contains($"{dependency.Name}") && s.Contains("error", StringComparison.InvariantCultureIgnoreCase) && !s.Contains("imported file", StringComparison.InvariantCultureIgnoreCase));
-					if (dependencyErrors.Any())
+					foreach (var project in solution.Projects)
 					{
-						errorLines.AddMany(dependencyErrors);
-						errored.Add(dependency);
-						continue;
-					}
+						var solutionDir = solution.Path.DirectoryPath;
+						bool isProjectFileModified = Git.Status(solutionDir, project).Any();
+						bool canCommit = !isProjectFileModified;
+						var outdatedPackages = Dotnet.GetOutdatedProjectDependencies(project);
+						var results = Dotnet.UpdatePackages(project, outdatedPackages);
+						var upToDate = new Collection<Package>();
+						var updated = new Collection<Package>();
+						var errored = new Collection<Package>();
+						var errorLines = new Collection<string>();
+						foreach (var package in outdatedPackages)
+						{
+							var packageErrors = results.Where(s => s.Contains($"{package.Name}") && s.Contains("error", StringComparison.InvariantCultureIgnoreCase) && !s.Contains("imported file", StringComparison.InvariantCultureIgnoreCase));
+							if (packageErrors.Any())
+							{
+								errorLines.AddMany(packageErrors);
+								errored.Add(package);
+								continue;
+							}
 
-					bool isUpToDate = results.Any(s => s.Contains($"'{dependency.Name}' version '{dependency.Version}' updated", StringComparison.InvariantCultureIgnoreCase));
-					if (isUpToDate)
-					{
-						upToDate.Add(dependency);
-						continue;
-					}
+							bool isUpToDate = results.Any(s => s.Contains($"'{package.Name}' version '{package.Version}' updated", StringComparison.InvariantCultureIgnoreCase));
+							if (isUpToDate)
+							{
+								upToDate.Add(package);
+								continue;
+							}
 
-					bool wasUpdated = results.Any(s => s.Contains($"'{dependency.Name}' version", StringComparison.InvariantCultureIgnoreCase) && s.Contains("updated in file", StringComparison.InvariantCultureIgnoreCase) && !s.Contains($"version '{dependency.Version}'", StringComparison.InvariantCultureIgnoreCase));
-					if (wasUpdated)
-					{
-						updated.Add(dependency);
-						continue;
+							bool wasUpdated = results.Any(s => s.Contains($"'{package.Name}' version", StringComparison.InvariantCultureIgnoreCase) && s.Contains("updated in file", StringComparison.InvariantCultureIgnoreCase) && !s.Contains($"version '{package.Version}'", StringComparison.InvariantCultureIgnoreCase));
+							if (wasUpdated)
+							{
+								updated.Add(package);
+								continue;
+							}
+						}
+
+						string projectStatus = $"✅ {project.FileName}";
+						if (errored.Count != 0)
+						{
+							string error = $"❌ {project.FileName}";
+							errorSummary.Add(error);
+							projectStatus = error;
+						}
+						else if (updated.Count != 0)
+						{
+							projectStatus = $"🚀 {project.FileName}";
+							if (canCommit)
+							{
+								Git.Unstage(solutionDir);
+								Git.Pull(solutionDir);
+								Git.Add(solutionDir, project);
+								Git.Commit(solutionDir, $"Updated packages in {project.FileName}");
+								Git.Push(solutionDir);
+							}
+						}
+
+						lock (ConsoleLock)
+						{
+							Console.WriteLine(projectStatus);
+							upToDate.Select(p => $"\t✅ {p.Name}").WriteItemsToConsole();
+							updated.Select(p => $"\t🚀 {p.Name}").WriteItemsToConsole();
+							errored.Select(p => $"\t❌ {p.Name}").WriteItemsToConsole();
+						}
 					}
 				}
-
-				lock (ConsoleLock)
+				catch (Exception ex)
 				{
-					if (errored.Count != 0)
-					{
-						string error = $"❌ {project.FileName}";
-						errorSummary.Add(error);
-						Console.WriteLine(error);
-						errorLines.WriteItemsToConsole();
-					}
-					else if (updated.Count != 0)
-					{
-						Console.WriteLine($"🚀 {project.FileName}");
-					}
-					else
-					{
-						Console.WriteLine($"✅ {project.FileName}");
-					}
-					upToDate.Select(p => $"\t✅ {p.Name}").WriteItemsToConsole();
-					updated.Select(p => $"\t🚀 {p.Name}").WriteItemsToConsole();
-					errored.Select(p => $"\t❌ {p.Name}").WriteItemsToConsole();
+					Console.WriteLine($"❌ {solution.Name}\n{ex.Message}");
+					errorSummary.Add($"{solution.Name}: {ex.Message}");
 				}
+			});
+
+			if (!errorSummary.IsEmpty)
+			{
+				Console.WriteLine();
+				Console.WriteLine("Failed to update:");
+				Console.WriteLine("-----------------");
+				errorSummary.WriteItemsToConsole();
 			}
-		});
 
-		if (!errorSummary.IsEmpty)
-		{
-			Console.WriteLine();
-			Console.WriteLine("Failed to update:");
-			Console.WriteLine("-----------------");
-			errorSummary.WriteItemsToConsole();
+			Thread.Sleep(1000 * 60 * 5);
 		}
 	}
 }

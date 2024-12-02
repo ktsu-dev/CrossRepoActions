@@ -1,19 +1,17 @@
 namespace ktsu.CrossRepoActions;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Management.Automation;
-using ktsu.StrongPaths;
-using ktsu.Extensions;
-using System.Collections.Concurrent;
-using NuGet.Versioning;
+using System.Text.Json.Nodes;
 using DustInTheWind.ConsoleTools.Controls.Spinners;
+using ktsu.Extensions;
+using ktsu.StrongPaths;
+using NuGet.Versioning;
 
 internal static class Dotnet
 {
-	private static Collection<Solution> CachedSolutions { get; set; } = [];
-	private static Collection<Solution> CachedSortedSolutions { get; set; } = [];
-
 	internal static Collection<string> BuildSolution()
 	{
 		var results = PowerShell.Create()
@@ -103,7 +101,7 @@ internal static class Dotnet
 				return new Package()
 				{
 					Name = parts[1],
-					Version = NuGetVersion.Parse(parts.Last()),
+					Version = parts.Last(),
 				};
 			})
 			.ToCollection();
@@ -111,48 +109,76 @@ internal static class Dotnet
 		return dependencies;
 	}
 
-	internal static Collection<Package> GetProjectDependencies(AbsoluteFilePath projectFile)
+	internal static Collection<Package> GetOutdatedProjectDependencies(AbsoluteFilePath projectFile)
 	{
-		var results = PowerShell.Create()
+		var jsonResult = PowerShell.Create()
 			.AddCommand("dotnet")
 			.AddArgument("list")
 			.AddArgument(projectFile.ToString())
 			.AddArgument("package")
+			.AddArgument("--outdated")
+			.AddArgument("--format=json")
 			.InvokeAndReturnOutput();
 
-		var stringResults = results
-			.Where(r => r.StartsWithOrdinal(">"))
-			.ToCollection();
+		const string jsonError = "Could not parse JSON output from 'dotnet list package --outdated --format-json'";
 
-		var dependencies = stringResults
-			.Select(r =>
+		string jsonString = string.Join("", jsonResult);
+		var rootObject = JsonNode.Parse(jsonString)?.AsObject()
+			?? throw new InvalidDataException(jsonError);
+
+
+		var projects = rootObject["projects"]?.AsArray()
+			?? throw new InvalidDataException(jsonError);
+
+		var frameworks = projects.Where(p =>
+		{
+			var pObj = p?.AsObject();
+			return pObj?["frameworks"]?.AsArray() != null;
+		})
+		.SelectMany(p =>
+		{
+			return p?.AsObject()?["frameworks"]?.AsArray()
+				?? throw new InvalidDataException(jsonError);
+		});
+
+		var packages = frameworks.SelectMany(f =>
+		{
+			return (f as JsonObject)?["topLevelPackages"]?.AsArray()
+				?? throw new InvalidDataException(jsonError);
+		})
+		.Select(p =>
+		{
+			string name = p?["id"]?.AsValue().GetValue<string>()
+				?? throw new InvalidDataException(jsonError);
+
+			string version = p?["requestedVersion"]?.AsValue().GetValue<string>()
+				?? throw new InvalidDataException(jsonError);
+
+			return new Package()
 			{
-				string[] parts = r.Split(' ');
-				return new Package()
-				{
-					Name = parts[1],
-					Version = NuGetVersion.Parse(parts.Last()),
-				};
-			})
-			.ToCollection();
+				Name = name,
+				Version = version,
+			};
+		})
+		.DistinctBy(p => p.Name)
+		.ToCollection();
 
-		return dependencies;
+		return packages;
 	}
 
-	internal static Collection<string> UpdatePackages(AbsoluteFilePath projectFile)
+	internal static Collection<string> UpdatePackages(AbsoluteFilePath projectFile, IEnumerable<Package> packages)
 	{
 		var output = new Collection<string>();
-		var dependencies = GetProjectDependencies(projectFile);
-		foreach (var dependency in dependencies)
+		foreach (var package in packages)
 		{
 			var ps = PowerShell.Create()
 				.AddCommand("dotnet")
 				.AddArgument("add")
 				.AddArgument(projectFile.ToString())
 				.AddArgument("package")
-				.AddArgument(dependency.Name);
+				.AddArgument(package.Name);
 
-			bool isPreRelease = dependency.Version.IsPrerelease;
+			bool isPreRelease = NuGetVersion.Parse(package.Version).IsPrerelease;
 			if (isPreRelease)
 			{
 				ps = ps.AddArgument("--prerelease");
@@ -176,7 +202,7 @@ internal static class Dotnet
 		return results.First();
 	}
 
-	internal static NuGetVersion GetProjectVersion(AbsoluteFilePath projectFile)
+	internal static string GetProjectVersion(AbsoluteFilePath projectFile)
 	{
 		var results = PowerShell.Create()
 			.AddCommand("dotnet")
@@ -185,7 +211,7 @@ internal static class Dotnet
 			.AddArgument("-getProperty:Version")
 			.InvokeAndReturnOutput();
 
-		return NuGetVersion.Parse(results.First());
+		return results.First();
 	}
 
 	internal static bool IsProjectPackable(AbsoluteFilePath projectFile)
@@ -223,7 +249,11 @@ internal static class Dotnet
 		var progressBar = new ProgressBar();
 		progressBar.Display();
 
-		_ = Parallel.ForEach(solutionFileCollection, solutionFile =>
+		_ = Parallel.ForEach(solutionFileCollection, new()
+		{
+			//MaxDegreeOfParallelism = Program.MaxParallelism,
+		},
+		solutionFile =>
 		{
 			var projects = GetProjects(solutionFile)
 				.Select(p => solutionFile.DirectoryPath / p.As<RelativeFilePath>())
@@ -261,11 +291,6 @@ internal static class Dotnet
 
 	internal static Collection<Solution> SortSolutionsByDependencies(ICollection<Solution> solutions)
 	{
-		if (CachedSortedSolutions.Count > 0)
-		{
-			return CachedSortedSolutions;
-		}
-
 		var unsatisfiedSolutions = solutions.ToCollection();
 		var sortedSolutions = new Collection<Solution>();
 
@@ -286,8 +311,6 @@ internal static class Dotnet
 			}
 		}
 
-		CachedSortedSolutions = sortedSolutions;
-
 		return sortedSolutions;
 	}
 
@@ -302,14 +325,17 @@ internal static class Dotnet
 	internal static Collection<Solution> DiscoverSolutions(AbsoluteDirectoryPath root)
 	{
 		Console.WriteLine($"Discovering solutions in {root}");
-		if (CachedSolutions.Count > 0)
+
+		var persistentState = PersistentState.Get();
+		if (persistentState.CachedSolutions.Count > 0)
 		{
-			return CachedSolutions;
+			return persistentState.CachedSolutions;
 		}
 
-		CachedSolutions = DiscoverSolutionDependencies(DiscoverSolutionFiles(root));
+		persistentState.CachedSolutions = SortSolutionsByDependencies(DiscoverSolutionDependencies(DiscoverSolutionFiles(root)));
+		persistentState.Save();
 
-		return CachedSolutions;
+		return persistentState.CachedSolutions;
 	}
 
 	internal static bool IsSolutionNested(AbsoluteFilePath solutionPath)

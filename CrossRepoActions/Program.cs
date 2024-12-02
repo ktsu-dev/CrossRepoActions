@@ -12,6 +12,7 @@ using ktsu.CrossRepoActions.Verbs;
 
 internal static class Program
 {
+	internal const int MaxParallelism = -1;
 	internal static Type[] Verbs { get; } = LoadVerbs();
 	internal static PersistentState Settings { get; set; } = new();
 
