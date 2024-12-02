@@ -8,7 +8,7 @@
   <ItemGroup>
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
     <PackageReference Include="ConsoleTools" Version="1.2.1" />
-    <PackageReference Include="ktsu.AppDataStorage" Version="1.1.45" />
+    <PackageReference Include="ktsu.AppDataStorage" Version="1.1.46" />
     <PackageReference Include="ktsu.Extensions" Version="1.0.32" />
     <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="9.0.0" />
     <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="9.0.0" />
