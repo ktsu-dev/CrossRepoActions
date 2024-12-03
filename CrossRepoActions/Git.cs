@@ -9,13 +9,13 @@ internal static class Git
 {
 	internal static IEnumerable<AbsoluteDirectoryPath> DiscoverRepositories(AbsoluteDirectoryPath root)
 	{
-		Console.WriteLine($"Discovering repositories in {root}");
-
 		var persistentState = PersistentState.Get();
 		if (persistentState.CachedRepos.Count > 0)
 		{
 			return persistentState.CachedRepos;
 		}
+
+		Console.WriteLine($"Discovering repositories in {root}");
 
 		persistentState.CachedRepos = Directory.EnumerateDirectories(root, ".git", SearchOption.AllDirectories)
 			.Select(p => p.As<AbsoluteDirectoryPath>().Parent)

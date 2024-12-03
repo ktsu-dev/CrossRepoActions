@@ -324,13 +324,13 @@ internal static class Dotnet
 
 	internal static Collection<Solution> DiscoverSolutions(AbsoluteDirectoryPath root)
 	{
-		Console.WriteLine($"Discovering solutions in {root}");
-
 		var persistentState = PersistentState.Get();
 		if (persistentState.CachedSolutions.Count > 0)
 		{
 			return persistentState.CachedSolutions;
 		}
+
+		Console.WriteLine($"Discovering solutions in {root}");
 
 		persistentState.CachedSolutions = SortSolutionsByDependencies(DiscoverSolutionDependencies(DiscoverSolutionFiles(root)));
 		persistentState.Save();
