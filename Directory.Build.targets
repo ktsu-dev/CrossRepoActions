@@ -30,6 +30,15 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
   </PropertyGroup>
 
+  <ItemGroup Condition="$(IsTest) == true">
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+    <ProjectReference Include="..\$(SolutionName)\$(SolutionName).csproj" />
+    <PackageReference Include="coverlet.collector" Version="6.0.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.6.4" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.6.4" />
+  </ItemGroup>
+
   <ItemGroup Condition="$(IsTest) != true">
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
     <InternalsVisibleTo Include="$(RootNamespace).Test" />
@@ -79,15 +88,6 @@
     <None Condition="Exists('$(ChangelogFilePath)')" Include="$(ChangelogFilePath)" Pack="True" PackagePath="\" Link="PublishData\%(RecursiveDir)%(Filename)%(Extension)"/>
     <None Condition="Exists('$(ReadmeFilePath)')" Include="$(ReadmeFilePath)" Pack="True" PackagePath="\" Link="PublishData\%(RecursiveDir)%(Filename)%(Extension)"/>
     <None Condition="Exists('$(VersionFilePath)')" Include="$(VersionFilePath)" Pack="True" PackagePath="\" Link="PublishData\%(RecursiveDir)%(Filename)%(Extension)"/>
-  </ItemGroup>
-
-  <ItemGroup Condition="$(IsTest) == true">
-    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
-    <ProjectReference Include="..\$(SolutionName)\$(SolutionName).csproj" />
-    <PackageReference Include="coverlet.collector" Version="6.0.2" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
-    <PackageReference Include="MSTest.TestAdapter" Version="3.6.4" />
-    <PackageReference Include="MSTest.TestFramework" Version="3.6.4" />
   </ItemGroup>
 
 </Project>
