@@ -1,21 +1,23 @@
 namespace ktsu.CrossRepoActions.Test;
 using System.Collections.ObjectModel;
 using System.Management.Automation;
+using ktsu.Extensions;
+using ktsu.StrongPaths;
 using Moq;
 
 [TestClass]
 public class DotnetTests
 {
-	private readonly Mock<PowerShell> _mockPowerShell;
+	private readonly Mock<PowerShell> mockPowerShell;
 
-	public DotnetTests() => _mockPowerShell = new Mock<PowerShell>();
+	public DotnetTests() => mockPowerShell = new Mock<PowerShell>();
 
 	[TestMethod]
 	public void BuildSolution_ShouldReturnErrors_WhenBuildFails()
 	{
 		// Arrange
 		var expectedErrors = new Collection<string> { "error CS0001: Build failed" };
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput())
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
 			.Returns(expectedErrors);
 
 		// Act
@@ -29,9 +31,9 @@ public class DotnetTests
 	public void BuildProject_ShouldReturnErrors_WhenBuildFails()
 	{
 		// Arrange
-		var projectFile = new AbsoluteFilePath("path/to/project.csproj");
+		var projectFile = "path/to/project.csproj".As<AbsoluteFilePath>();
 		var expectedErrors = new Collection<string> { "error CS0001: Build failed" };
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput())
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
 			.Returns(expectedErrors);
 
 		// Act
@@ -46,7 +48,7 @@ public class DotnetTests
 	{
 		// Arrange
 		var expectedResults = new Collection<string> { "Passed Test1", "Failed Test2" };
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.All))
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.All))
 			.Returns(expectedResults);
 
 		// Act
@@ -61,7 +63,7 @@ public class DotnetTests
 	{
 		// Arrange
 		var expectedTests = new Collection<string> { "Test1", "Test2" };
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput())
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
 			.Returns(expectedTests);
 
 		// Act
@@ -75,9 +77,9 @@ public class DotnetTests
 	public void GetProjects_ShouldReturnProjectList()
 	{
 		// Arrange
-		var solutionFile = new AbsoluteFilePath("path/to/solution.sln");
+		var solutionFile = "path/to/solution.sln".As<AbsoluteFilePath>();
 		var expectedProjects = new Collection<string> { "project1.csproj", "project2.csproj" };
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput())
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
 			.Returns(expectedProjects);
 
 		// Act
@@ -91,14 +93,14 @@ public class DotnetTests
 	public void GetSolutionDependencies_ShouldReturnDependencies()
 	{
 		// Arrange
-		var solutionFile = new AbsoluteFilePath("path/to/solution.sln");
+		var solutionFile = "path/to/solution.sln".As<AbsoluteFilePath>();
 		var expectedDependencies = new Collection<Package>
 		{
-			new Package { Name = "Package1", Version = "1.0.0" },
-			new Package { Name = "Package2", Version = "2.0.0" }
+			new() { Name = "Package1", Version = "1.0.0" },
+			new() { Name = "Package2", Version = "2.0.0" }
 		};
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput())
-			.Returns(new Collection<string> { "> Package1 1.0.0", "> Package2 2.0.0" });
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
+			.Returns(["> Package1 1.0.0", "> Package2 2.0.0"]);
 
 		// Act
 		var result = Dotnet.GetSolutionDependencies(solutionFile);
@@ -111,15 +113,15 @@ public class DotnetTests
 	public void GetOutdatedProjectDependencies_ShouldReturnOutdatedPackages()
 	{
 		// Arrange
-		var projectFile = new AbsoluteFilePath("path/to/project.csproj");
+		var projectFile = "path/to/project.csproj".As<AbsoluteFilePath>();
 		var expectedPackages = new Collection<Package>
 		{
-			new Package { Name = "Package1", Version = "1.0.0" },
-			new Package { Name = "Package2", Version = "2.0.0" }
+			new() { Name = "Package1", Version = "1.0.0" },
+			new() { Name = "Package2", Version = "2.0.0" }
 		};
-		var jsonResult = "[{\"projects\":[{\"frameworks\":[{\"topLevelPackages\":[{\"id\":\"Package1\",\"requestedVersion\":\"1.0.0\"},{\"id\":\"Package2\",\"requestedVersion\":\"2.0.0\"}]}]}]}]";
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput())
-			.Returns(new Collection<string> { jsonResult });
+		string jsonResult = /*lang=json,strict*/ "[{\"projects\":[{\"frameworks\":[{\"topLevelPackages\":[{\"id\":\"Package1\",\"requestedVersion\":\"1.0.0\"},{\"id\":\"Package2\",\"requestedVersion\":\"2.0.0\"}]}]}]}]";
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
+			.Returns([jsonResult]);
 
 		// Act
 		var result = Dotnet.GetOutdatedProjectDependencies(projectFile);
@@ -132,14 +134,14 @@ public class DotnetTests
 	public void UpdatePackages_ShouldReturnUpdateResults()
 	{
 		// Arrange
-		var projectFile = new AbsoluteFilePath("path/to/project.csproj");
+		var projectFile = "path/to/project.csproj".As<AbsoluteFilePath>();
 		var packages = new Collection<Package>
 		{
-			new Package { Name = "Package1", Version = "1.0.0" },
-			new Package { Name = "Package2", Version = "2.0.0" }
+			new() { Name = "Package1", Version = "1.0.0" },
+			new() { Name = "Package2", Version = "2.0.0" }
 		};
 		var expectedResults = new Collection<string> { "Package1 updated", "Package2 updated" };
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput())
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
 			.Returns(expectedResults);
 
 		// Act
@@ -153,13 +155,13 @@ public class DotnetTests
 	public void GetProjectAssemblyName_ShouldReturnAssemblyName()
 	{
 		// Arrange
-		var projectFile = new AbsoluteFilePath("path/to/project.csproj");
-		var expectedAssemblyName = "ProjectAssembly";
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput())
-			.Returns(new Collection<string> { expectedAssemblyName });
+		var projectFile = "path/to/project.csproj".As<AbsoluteFilePath>();
+		string expectedAssemblyName = "ProjectAssembly";
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
+			.Returns([expectedAssemblyName]);
 
 		// Act
-		var result = Dotnet.GetProjectAssemblyName(projectFile);
+		string result = Dotnet.GetProjectAssemblyName(projectFile);
 
 		// Assert
 		Assert.AreEqual(expectedAssemblyName, result);
@@ -169,13 +171,13 @@ public class DotnetTests
 	public void GetProjectVersion_ShouldReturnProjectVersion()
 	{
 		// Arrange
-		var projectFile = new AbsoluteFilePath("path/to/project.csproj");
-		var expectedVersion = "1.0.0";
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput())
-			.Returns(new Collection<string> { expectedVersion });
+		var projectFile = "path/to/project.csproj".As<AbsoluteFilePath>();
+		string expectedVersion = "1.0.0";
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
+			.Returns([expectedVersion]);
 
 		// Act
-		var result = Dotnet.GetProjectVersion(projectFile);
+		string result = Dotnet.GetProjectVersion(projectFile);
 
 		// Assert
 		Assert.AreEqual(expectedVersion, result);
@@ -185,12 +187,12 @@ public class DotnetTests
 	public void IsProjectPackable_ShouldReturnTrue_WhenProjectIsPackable()
 	{
 		// Arrange
-		var projectFile = new AbsoluteFilePath("path/to/project.csproj");
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput())
-			.Returns(new Collection<string> { "true" });
+		var projectFile = "path/to/project.csproj".As<AbsoluteFilePath>();
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
+			.Returns(["true"]);
 
 		// Act
-		var result = Dotnet.IsProjectPackable(projectFile);
+		bool result = Dotnet.IsProjectPackable(projectFile);
 
 		// Assert
 		Assert.IsTrue(result);
@@ -200,11 +202,11 @@ public class DotnetTests
 	public void GetProjectPackage_ShouldReturnProjectPackage()
 	{
 		// Arrange
-		var projectFile = new AbsoluteFilePath("path/to/project.csproj");
+		var projectFile = "path/to/project.csproj".As<AbsoluteFilePath>();
 		var expectedPackage = new Package { Name = "ProjectAssembly", Version = "1.0.0" };
-		_mockPowerShell.SetupSequence(ps => ps.InvokeAndReturnOutput())
-			.Returns(new Collection<string> { "ProjectAssembly" })
-			.Returns(new Collection<string> { "1.0.0" });
+		mockPowerShell.SetupSequence(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
+			.Returns(["ProjectAssembly"])
+			.Returns(["1.0.0"]);
 
 		// Act
 		var result = Dotnet.GetProjectPackage(projectFile);
@@ -231,20 +233,19 @@ public class DotnetTests
 	public void DiscoverSolutionDependencies_ShouldReturnSolutions()
 	{
 		// Arrange
-		var solutionFiles = new Collection<AbsoluteFilePath> { new AbsoluteFilePath("path/to/solution.sln") };
+		var solutionFiles = new Collection<AbsoluteFilePath> { "path/to/solution.sln".As<AbsoluteFilePath>() };
 		var expectedSolutions = new Collection<Solution>
 		{
-			new Solution
-			{
+			new() {
 				Name = "Solution",
-				Path = new AbsoluteFilePath("path/to/solution.sln"),
-				Projects = new Collection<AbsoluteFilePath> { new AbsoluteFilePath("path/to/project.csproj") },
-				Packages = new Collection<Package> { new Package { Name = "ProjectAssembly", Version = "1.0.0" } },
-				Dependencies = new Collection<Package> { new Package { Name = "Package1", Version = "1.0.0" } }
+				Path = "path/to/solution.sln".As<AbsoluteFilePath>(),
+				Projects = ["path/to/project.csproj".As<AbsoluteFilePath>()],
+				Packages = [new() { Name = "ProjectAssembly", Version = "1.0.0" }],
+				Dependencies = [new() { Name = "Package1", Version = "1.0.0" }]
 			}
 		};
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput())
-			.Returns(new Collection<string> { "project.csproj", "> Package1 1.0.0" });
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
+			.Returns(["project.csproj", "> Package1 1.0.0"]);
 
 		// Act
 		var result = Dotnet.DiscoverSolutionDependencies(solutionFiles);
@@ -259,21 +260,19 @@ public class DotnetTests
 		// Arrange
 		var solutions = new Collection<Solution>
 		{
-			new Solution
-			{
+			new() {
 				Name = "Solution1",
-				Path = new AbsoluteFilePath("path/to/solution1.sln"),
-				Projects = new Collection<AbsoluteFilePath> { new AbsoluteFilePath("path/to/project1.csproj") },
-				Packages = new Collection<Package> { new Package { Name = "ProjectAssembly1", Version = "1.0.0" } },
-				Dependencies = new Collection<Package> { new Package { Name = "Package1", Version = "1.0.0" } }
+				Path = "path/to/solution1.sln".As<AbsoluteFilePath>(),
+				Projects = ["path/to/project1.csproj".As<AbsoluteFilePath>()],
+				Packages = [new() { Name = "ProjectAssembly1", Version = "1.0.0" }],
+				Dependencies = [new() { Name = "Package1", Version = "1.0.0" }]
 			},
-			new Solution
-			{
+			new() {
 				Name = "Solution2",
-				Path = new AbsoluteFilePath("path/to/solution2.sln"),
-				Projects = new Collection<AbsoluteFilePath> { new AbsoluteFilePath("path/to/project2.csproj") },
-				Packages = new Collection<Package> { new Package { Name = "ProjectAssembly2", Version = "1.0.0" } },
-				Dependencies = new Collection<Package> { new Package { Name = "Package2", Version = "1.0.0" } }
+				Path = "path/to/solution2.sln".As < AbsoluteFilePath >(),
+				Projects = ["path/to/project2.csproj".As<AbsoluteFilePath>()],
+				Packages = [new() { Name = "ProjectAssembly2", Version = "1.0.0" }],
+				Dependencies = [new() { Name = "Package2", Version = "1.0.0" }]
 			}
 		};
 		var expectedSortedSolutions = new Collection<Solution> { solutions[1], solutions[0] };
@@ -289,10 +288,10 @@ public class DotnetTests
 	public void DiscoverSolutionFiles_ShouldReturnSolutionFiles()
 	{
 		// Arrange
-		var root = new AbsoluteDirectoryPath("path/to/root");
-		var expectedSolutionFiles = new Collection<AbsoluteFilePath> { new AbsoluteFilePath("path/to/solution.sln") };
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput())
-			.Returns(new Collection<string> { "solution.sln" });
+		var root = "path/to/root".As<AbsoluteDirectoryPath>();
+		var expectedSolutionFiles = new Collection<AbsoluteFilePath> { "path/to/solution.sln".As<AbsoluteFilePath>() };
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
+			.Returns(["solution.sln"]);
 
 		// Act
 		var result = Dotnet.DiscoverSolutionFiles(root);
@@ -305,20 +304,19 @@ public class DotnetTests
 	public void DiscoverSolutions_ShouldReturnSolutions()
 	{
 		// Arrange
-		var root = new AbsoluteDirectoryPath("path/to/root");
+		var root = "path/to/root".As<AbsoluteDirectoryPath>();
 		var expectedSolutions = new Collection<Solution>
 		{
-			new Solution
-			{
+			new() {
 				Name = "Solution",
-				Path = new AbsoluteFilePath("path/to/solution.sln"),
-				Projects = new Collection<AbsoluteFilePath> { new AbsoluteFilePath("path/to/project.csproj") },
-				Packages = new Collection<Package> { new Package { Name = "ProjectAssembly", Version = "1.0.0" } },
-				Dependencies = new Collection<Package> { new Package { Name = "Package1", Version = "1.0.0" } }
+				Path = "path/to/solution.sln".As<AbsoluteFilePath>(),
+				Projects = ["path/to/project.csproj".As<AbsoluteFilePath>()],
+				Packages = [new() { Name = "ProjectAssembly", Version = "1.0.0" }],
+				Dependencies = [new() { Name = "Package1", Version = "1.0.0" }]
 			}
 		};
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput())
-			.Returns(new Collection<string> { "solution.sln", "project.csproj", "> Package1 1.0.0" });
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
+			.Returns(["solution.sln", "project.csproj", "> Package1 1.0.0"]);
 
 		// Act
 		var result = Dotnet.DiscoverSolutions(root);
@@ -331,12 +329,12 @@ public class DotnetTests
 	public void IsSolutionNested_ShouldReturnTrue_WhenSolutionIsNested()
 	{
 		// Arrange
-		var solutionPath = new AbsoluteFilePath("path/to/solution.sln");
-		_mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput())
-			.Returns(new Collection<string> { "nestedSolution.sln" });
+		var solutionPath = "path/to/solution.sln".As<AbsoluteFilePath>();
+		mockPowerShell.Setup(ps => ps.InvokeAndReturnOutput(PowershellStreams.Default))
+			.Returns(["nestedSolution.sln"]);
 
 		// Act
-		var result = Dotnet.IsSolutionNested(solutionPath);
+		bool result = Dotnet.IsSolutionNested(solutionPath);
 
 		// Assert
 		Assert.IsTrue(result);
