@@ -10,25 +10,38 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="$(IsExecutable) == true">
+    <IsPackable>False</IsPackable>
+    <IsPublishable>True</IsPublishable>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(IsTest) == true">
     <NoWarn>$(NoWarn);CS1591;CA2225;CA1707;IDE0022;IDE0058;CA1305;S4056;S104;CA5394;</NoWarn>
+    <IsPackable>False</IsPackable>
+    <IsPublishable>False</IsPublishable>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(IsLibrary) == true">
     <IsPackable>True</IsPackable>
+    <IsPublishable>False</IsPublishable>
     <EnablePackageValidation>True</EnablePackageValidation>
   </PropertyGroup>
 
-  <PropertyGroup Condition="$(IsLibrary) != true Or $(IsPrimaryProject) != true">
+  <PropertyGroup Condition="$(IsPrimaryProject) != true">
     <IsPackable>False</IsPackable>
+    <IsPublishable>False</IsPublishable>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(IsPrerelease) == true">
     <NoWarn>$(NoWarn);CS1591;</NoWarn>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
   </PropertyGroup>
+
+  <ItemGroup Condition="$(IsTest) != true">
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+    <InternalsVisibleTo Include="$(RootNamespace).Test" />
+    <InternalsVisibleTo Include="$(RootNamespace).Tests" />
+    <InternalsVisibleTo Include="Test" />
+  </ItemGroup>
 
   <ItemGroup Condition="$(IsTest) == true">
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
@@ -37,13 +50,6 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="3.6.4" />
     <PackageReference Include="MSTest.TestFramework" Version="3.6.4" />
-  </ItemGroup>
-
-  <ItemGroup Condition="$(IsTest) != true">
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
-    <InternalsVisibleTo Include="$(RootNamespace).Test" />
-    <InternalsVisibleTo Include="$(RootNamespace).Tests" />
-    <InternalsVisibleTo Include="Test" />
   </ItemGroup>
 
   <ItemGroup Condition="$(IsPrimaryProject) == true">
