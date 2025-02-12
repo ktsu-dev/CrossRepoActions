@@ -22,12 +22,12 @@ internal static class PowershellExtensions
 {
 	internal static Collection<string> InvokeAndReturnOutput(this PowerShell ps, PowershellStreams streams = PowershellStreams.Default)
 	{
-		var input = new PSDataCollection<PSObject>();
+		using var input = new PSDataCollection<PSObject>();
 		input.Complete();
 
 		var collectedOutput = new Collection<string>();
 
-		var stdOutput = new PSDataCollection<PSObject>();
+		using var stdOutput = new PSDataCollection<PSObject>();
 		if (streams.HasFlag(PowershellStreams.Output))
 		{
 			stdOutput.DataAdded += (s, e) =>

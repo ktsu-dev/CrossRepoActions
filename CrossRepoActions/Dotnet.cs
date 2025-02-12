@@ -14,7 +14,8 @@ internal static class Dotnet
 {
 	internal static Collection<string> BuildSolution()
 	{
-		var results = PowerShell.Create()
+		using var ps = PowerShell.Create();
+		var results = ps
 			.AddCommand("dotnet")
 			.AddArgument("build")
 			.AddArgument("--nologo")
@@ -25,7 +26,8 @@ internal static class Dotnet
 
 	internal static Collection<string> BuildProject(AbsoluteFilePath projectFile)
 	{
-		var results = PowerShell.Create()
+		using var ps = PowerShell.Create();
+		var results = ps
 			.AddCommand("dotnet")
 			.AddArgument("build")
 			.AddArgument("--nologo")
@@ -37,19 +39,23 @@ internal static class Dotnet
 
 	internal static Collection<string> RunTests()
 	{
-		var ps = PowerShell.Create()
+		using var ps = PowerShell.Create();
+		var results = ps
 			.AddCommand("dotnet")
 			.AddArgument("vstest")
 			.AddArgument("**/bin/**/*Test.dll")
 			.AddArgument("/logger:console;verbosity=normal")
-			.AddArgument("--nologo");
+			.AddArgument("--nologo")
+			.InvokeAndReturnOutput(PowershellStreams.All);
 
-		return ps.InvokeAndReturnOutput(PowershellStreams.All);
+
+		return results;
 	}
 
 	internal static Collection<string> GetTests()
 	{
-		var results = PowerShell.Create()
+		using var ps = PowerShell.Create();
+		var results = ps
 			.AddCommand("dotnet")
 			.AddArgument("vstest")
 			.AddArgument("--ListTests")
@@ -66,7 +72,8 @@ internal static class Dotnet
 
 	internal static Collection<string> GetProjects(AbsoluteFilePath solutionFile)
 	{
-		var results = PowerShell.Create()
+		using var ps = PowerShell.Create();
+		var results = ps
 			.AddCommand("dotnet")
 			.AddArgument("sln")
 			.AddArgument(solutionFile.ToString())
@@ -82,7 +89,8 @@ internal static class Dotnet
 
 	internal static Collection<Package> GetSolutionDependencies(AbsoluteFilePath solutionFile)
 	{
-		var results = PowerShell.Create()
+		using var ps = PowerShell.Create();
+		var results = ps
 			.AddCommand("dotnet")
 			.AddArgument("list")
 			.AddArgument(solutionFile.ToString())
@@ -111,7 +119,8 @@ internal static class Dotnet
 
 	internal static Collection<Package> GetOutdatedProjectDependencies(AbsoluteFilePath projectFile)
 	{
-		var jsonResult = PowerShell.Create()
+		using var ps = PowerShell.Create();
+		var jsonResult = ps
 			.AddCommand("dotnet")
 			.AddArgument("list")
 			.AddArgument(projectFile.ToString())
@@ -166,25 +175,37 @@ internal static class Dotnet
 		return packages;
 	}
 
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "False positive: we're using a using declaration")]
 	internal static Collection<string> UpdatePackages(AbsoluteFilePath projectFile, IEnumerable<Package> packages)
 	{
 		var output = new Collection<string>();
 		foreach (var package in packages)
 		{
-			var ps = PowerShell.Create()
+			bool isPreRelease = NuGetVersion.Parse(package.Version).IsPrerelease;
+			using var ps = PowerShell.Create();
+			if (isPreRelease)
+			{
+				var results = ps
+					.AddCommand("dotnet")
+					.AddArgument("add")
+					.AddArgument(projectFile.ToString())
+					.AddArgument("package")
+					.AddArgument(package.Name)
+					.AddArgument("--prerelease")
+					.InvokeAndReturnOutput();
+				output.AddMany(results);
+			}
+			else
+			{
+				var results = ps
 				.AddCommand("dotnet")
 				.AddArgument("add")
 				.AddArgument(projectFile.ToString())
 				.AddArgument("package")
-				.AddArgument(package.Name);
-
-			bool isPreRelease = NuGetVersion.Parse(package.Version).IsPrerelease;
-			if (isPreRelease)
-			{
-				ps = ps.AddArgument("--prerelease");
+				.AddArgument(package.Name)
+				.InvokeAndReturnOutput();
+				output.AddMany(results);
 			}
-
-			output.AddMany(ps.InvokeAndReturnOutput());
 		}
 
 		return output;
@@ -192,7 +213,8 @@ internal static class Dotnet
 
 	internal static string GetProjectAssemblyName(AbsoluteFilePath projectFile)
 	{
-		var results = PowerShell.Create()
+		using var ps = PowerShell.Create();
+		var results = ps
 			.AddCommand("dotnet")
 			.AddArgument("msbuild")
 			.AddArgument(projectFile.ToString())
@@ -204,7 +226,8 @@ internal static class Dotnet
 
 	internal static string GetProjectVersion(AbsoluteFilePath projectFile)
 	{
-		var results = PowerShell.Create()
+		using var ps = PowerShell.Create();
+		var results = ps
 			.AddCommand("dotnet")
 			.AddArgument("msbuild")
 			.AddArgument(projectFile.ToString())
@@ -216,7 +239,8 @@ internal static class Dotnet
 
 	internal static bool IsProjectPackable(AbsoluteFilePath projectFile)
 	{
-		var results = PowerShell.Create()
+		using var ps = PowerShell.Create();
+		var results = ps
 			.AddCommand("dotnet")
 			.AddArgument("msbuild")
 			.AddArgument(projectFile.ToString())

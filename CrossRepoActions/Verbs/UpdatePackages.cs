@@ -9,6 +9,7 @@ using ktsu.Extensions;
 internal class UpdatePackages : BaseVerb<UpdatePackages>
 {
 	private static object ConsoleLock { get; } = new();
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Printing unhandled exceptions")]
 	internal override void Run(UpdatePackages options)
 	{
 		while (true)

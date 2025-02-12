@@ -25,9 +25,5 @@ internal static class Program
 			.WithParsed<BaseVerb>(task => task.Run());
 	}
 
-	private static Type[] LoadVerbs()
-	{
-		return Assembly.GetExecutingAssembly().GetTypes()
-			.Where(t => t.GetCustomAttribute<VerbAttribute>() != null).ToArray();
-	}
+	private static Type[] LoadVerbs() => [.. Assembly.GetExecutingAssembly().GetTypes().Where(t => t.GetCustomAttribute<VerbAttribute>() != null)];
 }
