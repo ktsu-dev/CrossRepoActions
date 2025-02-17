@@ -2,7 +2,9 @@ namespace ktsu.CrossRepoActions.Verbs;
 
 using System.Diagnostics;
 using System.Linq;
+
 using CommandLine;
+
 using DustInTheWind.ConsoleTools.Controls;
 using DustInTheWind.ConsoleTools.Controls.Menus;
 using DustInTheWind.ConsoleTools.Controls.Menus.MenuItems;

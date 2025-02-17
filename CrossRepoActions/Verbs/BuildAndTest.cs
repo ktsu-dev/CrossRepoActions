@@ -1,7 +1,9 @@
 namespace ktsu.CrossRepoActions.Verbs;
 
 using System.Collections.ObjectModel;
+
 using CommandLine;
+
 using ktsu.CrossRepoActions;
 using ktsu.Extensions;
 using ktsu.StrongPaths;

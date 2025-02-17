@@ -1,8 +1,7 @@
-// Ignore Spelling: Username
-
 namespace ktsu.CrossRepoActions;
 
 using System.Collections.ObjectModel;
+
 using ktsu.AppDataStorage;
 using ktsu.StrongPaths;
 

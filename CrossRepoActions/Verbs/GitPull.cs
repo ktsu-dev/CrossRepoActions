@@ -1,7 +1,9 @@
 namespace ktsu.CrossRepoActions.Verbs;
 
 using System.Collections.Concurrent;
+
 using CommandLine;
+
 using ktsu.Extensions;
 
 [Verb("GitPull")]

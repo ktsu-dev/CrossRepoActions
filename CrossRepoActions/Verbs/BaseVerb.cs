@@ -1,7 +1,9 @@
 namespace ktsu.CrossRepoActions.Verbs;
 
 using CommandLine;
+
 using DustInTheWind.ConsoleTools.Controls.Menus;
+
 using ktsu.Extensions;
 using ktsu.StrongPaths;
 

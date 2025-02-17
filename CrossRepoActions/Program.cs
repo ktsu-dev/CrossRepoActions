@@ -1,5 +1,3 @@
-// Ignore Spelling: sha
-
 [assembly: CLSCompliant(false)]
 [assembly: System.Runtime.InteropServices.ComVisible(false)]
 
@@ -7,7 +5,9 @@ namespace ktsu.CrossRepoActions;
 
 using System.Reflection;
 using System.Text;
+
 using CommandLine;
+
 using ktsu.CrossRepoActions.Verbs;
 
 internal static class Program

@@ -2,7 +2,9 @@ namespace ktsu.CrossRepoActions.Verbs;
 
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
+
 using CommandLine;
+
 using ktsu.Extensions;
 
 [Verb("UpdatePackages")]

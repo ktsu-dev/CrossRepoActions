@@ -5,9 +5,12 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Management.Automation;
 using System.Text.Json.Nodes;
+
 using DustInTheWind.ConsoleTools.Controls.Spinners;
+
 using ktsu.Extensions;
 using ktsu.StrongPaths;
+
 using NuGet.Versioning;
 
 internal static class Dotnet
@@ -47,7 +50,6 @@ internal static class Dotnet
 			.AddArgument("/logger:console;verbosity=normal")
 			.AddArgument("--nologo")
 			.InvokeAndReturnOutput(PowershellStreams.All);
-
 
 		return results;
 	}
@@ -134,7 +136,6 @@ internal static class Dotnet
 		string jsonString = string.Join("", jsonResult);
 		var rootObject = JsonNode.Parse(jsonString)?.AsObject()
 			?? throw new InvalidDataException(jsonError);
-
 
 		var projects = rootObject["projects"]?.AsArray()
 			?? throw new InvalidDataException(jsonError);

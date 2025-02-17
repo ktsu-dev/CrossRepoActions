@@ -1,6 +1,7 @@
 namespace ktsu.CrossRepoActions;
 
 using System.Collections.ObjectModel;
+
 using ktsu.StrongPaths;
 
 /// <summary>

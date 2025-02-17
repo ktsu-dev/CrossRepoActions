@@ -1,7 +1,9 @@
 namespace ktsu.CrossRepoActions;
+
 using System;
 using System.Collections.ObjectModel;
 using System.Management.Automation;
+
 using ktsu.Extensions;
 
 [Flags]
