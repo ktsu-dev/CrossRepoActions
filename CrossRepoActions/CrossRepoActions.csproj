@@ -13,7 +13,7 @@
     <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="9.0.2" />
     <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="9.0.2" />
     <PackageReference Include="Microsoft.PowerShell.SDK" Version="7.5.0" />
-    <PackageReference Include="NuGet.Versioning" Version="6.13.1" />
+    <PackageReference Include="NuGet.Versioning" Version="6.13.2" />
   </ItemGroup>
 
 </Project>
