@@ -248,7 +248,14 @@ internal static class Dotnet
 			.AddArgument("-getProperty:IsPackable")
 			.InvokeAndReturnOutput();
 
-		return bool.Parse(results.First());
+		try
+		{
+			return bool.Parse(results.First());
+		}
+		catch (FormatException)
+		{
+			return false;
+		}
 	}
 
 	internal static Package GetProjectPackage(AbsoluteFilePath projectFile)
