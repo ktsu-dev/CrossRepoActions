@@ -1,10 +1,11 @@
 namespace ktsu.CrossRepoActions;
 
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
-using System.Management.Automation;
 
 using ktsu.Extensions;
+using ktsu.RunCommand;
 using ktsu.StrongPaths;
 
 internal static class Git
@@ -30,88 +31,63 @@ internal static class Git
 
 	internal static IEnumerable<string> Pull(AbsoluteDirectoryPath repo)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("pull")
-			.AddArgument("--all")
-			.AddArgument("-v")
-			.InvokeAndReturnOutput(PowershellStreams.All);
+		Collection<string> results = [];
+
+		RunCommand.Execute($"git -C {repo} pull --all -v", new LineOutputHandler(s => results.Add(s.Trim()), s => results.Add(s.Trim())));
 
 		return results;
 	}
 
 	internal static IEnumerable<string> Push(AbsoluteDirectoryPath repo)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("push")
-			.AddArgument("-v")
-			.InvokeAndReturnOutput(PowershellStreams.All);
+		Collection<string> results = [];
+
+		RunCommand.Execute($"git -C {repo} push -v", new LineOutputHandler(s => results.Add(s.Trim()), s => results.Add(s.Trim())));
 
 		return results;
 	}
 
 	internal static IEnumerable<string> Status(AbsoluteDirectoryPath repo, AbsoluteFilePath filePath)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("status")
-			.AddArgument("--short")
-			.AddArgument("--")
-			.AddArgument(filePath.ToString())
-			.InvokeAndReturnOutput(PowershellStreams.All);
+		Collection<string> results = [];
+
+		RunCommand.Execute($"git -C {repo} status --short -- {filePath}", new LineOutputHandler(s => results.Add(s.Trim()), s => results.Add(s.Trim())));
 
 		return results;
 	}
 
 	internal static IEnumerable<string> Unstage(AbsoluteDirectoryPath repo)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("restore")
-			.AddArgument("--staged")
-			.AddArgument(repo.ToString())
-			.InvokeAndReturnOutput(PowershellStreams.All);
+		Collection<string> results = [];
+
+		RunCommand.Execute($"git -C {repo} restore --staged {repo}", new LineOutputHandler(s => results.Add(s.Trim()), s => results.Add(s.Trim())));
 
 		return results;
 	}
 
 	internal static IEnumerable<string> Add(AbsoluteDirectoryPath repo, AbsoluteFilePath filePath)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("add")
-			.AddArgument(filePath.ToString())
-			.InvokeAndReturnOutput(PowershellStreams.All);
+		Collection<string> results = [];
+
+		RunCommand.Execute($"git -C {repo} add {filePath}", new LineOutputHandler(s => results.Add(s.Trim()), s => results.Add(s.Trim())));
 
 		return results;
 	}
 
 	internal static IEnumerable<string> Commit(AbsoluteDirectoryPath repo, string message)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("commit")
-			.AddParameter("-m", message)
-			.InvokeAndReturnOutput(PowershellStreams.All);
+		Collection<string> results = [];
+
+		RunCommand.Execute($"git -C {repo} commit -m {message}", new LineOutputHandler(s => results.Add(s.Trim()), s => results.Add(s.Trim())));
+
+		return results;
+	}
+
+	internal static IEnumerable<string> BranchRemote(AbsoluteDirectoryPath repo)
+	{
+		Collection<string> results = [];
+
+		RunCommand.Execute($"git -C {repo} branch --remote", new LineOutputHandler(s => results.Add(s.Trim()), s => results.Add(s.Trim())));
 
 		return results;
 	}

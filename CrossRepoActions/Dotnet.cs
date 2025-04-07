@@ -3,108 +3,80 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Management.Automation;
 using System.Text.Json.Nodes;
 
 using DustInTheWind.ConsoleTools.Controls.Spinners;
 
 using ktsu.Extensions;
+using ktsu.RunCommand;
 using ktsu.StrongPaths;
-
-using NuGet.Versioning;
 
 internal static class Dotnet
 {
 	internal static Collection<string> BuildSolution()
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("dotnet")
-			.AddArgument("build")
-			.AddArgument("--nologo")
-			.InvokeAndReturnOutput();
+		Collection<string> results = [];
+
+		RunCommand.Execute("dotnet build --nologo", new LineOutputHandler(results.Add, results.Add));
 
 		return GetErrors(results);
 	}
 
 	internal static Collection<string> BuildProject(AbsoluteFilePath projectFile)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("dotnet")
-			.AddArgument("build")
-			.AddArgument("--nologo")
-			.AddArgument(projectFile.ToString())
-			.InvokeAndReturnOutput();
+		Collection<string> results = [];
+
+		RunCommand.Execute($"dotnet build --nologo {projectFile}", new LineOutputHandler(results.Add, results.Add));
 
 		return GetErrors(results);
 	}
 
 	internal static Collection<string> RunTests()
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("dotnet")
-			.AddArgument("vstest")
-			.AddArgument("**/bin/**/*Test.dll")
-			.AddArgument("/logger:console;verbosity=normal")
-			.AddArgument("--nologo")
-			.InvokeAndReturnOutput(PowershellStreams.All);
+		Collection<string> results = [];
 
-		return results;
+		RunCommand.Execute($"dotnet vstest **/bin/**/*Test.dll --logger:console;verbosity=normal --nologo", new LineOutputHandler(results.Add, results.Add));
+
+		return GetErrors(results);
 	}
 
 	internal static Collection<string> GetTests()
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("dotnet")
-			.AddArgument("vstest")
-			.AddArgument("--ListTests")
-			.AddArgument("--nologo")
-			.AddArgument("**/bin/**/*Test.dll")
-			.InvokeAndReturnOutput();
+		Collection<string> results = [];
 
-		var stringResults = results
+		RunCommand.Execute($"dotnet vstest --ListTests --nologo **/bin/**/*Test.dll", new LineOutputHandler(results.Add, results.Add));
+
+		var filteredResults = results
 			.Where(r => !r.StartsWith("The following") && !r.StartsWith("No test source"))
 			.ToCollection();
 
-		return stringResults;
+		return filteredResults;
 	}
 
 	internal static Collection<string> GetProjects(AbsoluteFilePath solutionFile)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("dotnet")
-			.AddArgument("sln")
-			.AddArgument(solutionFile.ToString())
-			.AddArgument("list")
-			.InvokeAndReturnOutput();
+		Collection<string> results = [];
 
-		var stringResults = results
+		RunCommand.Execute($"dotnet sln {solutionFile} list", new LineOutputHandler(results.Add, results.Add));
+
+		var filteredResults = results
 			.Where(r => r.EndsWithOrdinal(".csproj"))
 			.ToCollection();
 
-		return stringResults;
+		return filteredResults;
 	}
 
 	internal static Collection<Package> GetSolutionDependencies(AbsoluteFilePath solutionFile)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("dotnet")
-			.AddArgument("list")
-			.AddArgument(solutionFile.ToString())
-			.AddArgument("package")
-			.AddArgument("--include-transitive")
-			.InvokeAndReturnOutput();
+		Collection<string> results = [];
 
-		var stringResults = results
+		RunCommand.Execute($"dotnet list {solutionFile} package --include-transitive", new LineOutputHandler(results.Add, results.Add));
+
+		var filteredResults = results
 			.Where(r => r.StartsWithOrdinal(">"))
 			.ToCollection();
 
-		var dependencies = stringResults
+		var dependencies = filteredResults
 			.Select(r =>
 			{
 				string[] parts = r.Split(' ');
@@ -119,26 +91,19 @@ internal static class Dotnet
 		return dependencies;
 	}
 
+	private const string packageJsonError = "Could not parse JSON output from 'dotnet list package --format-json'";
 	internal static Collection<Package> GetOutdatedProjectDependencies(AbsoluteFilePath projectFile)
 	{
-		using var ps = PowerShell.Create();
-		var jsonResult = ps
-			.AddCommand("dotnet")
-			.AddArgument("list")
-			.AddArgument(projectFile.ToString())
-			.AddArgument("package")
-			.AddArgument("--outdated")
-			.AddArgument("--format=json")
-			.InvokeAndReturnOutput();
+		Collection<string> results = [];
 
-		const string jsonError = "Could not parse JSON output from 'dotnet list package --outdated --format-json'";
+		RunCommand.Execute($"dotnet list {projectFile} package --format=json", new LineOutputHandler(results.Add, results.Add));
 
-		string jsonString = string.Join("", jsonResult);
+		string jsonString = string.Join("", results);
 		var rootObject = JsonNode.Parse(jsonString)?.AsObject()
-			?? throw new InvalidDataException(jsonError);
+			?? throw new InvalidDataException(packageJsonError);
 
 		var projects = rootObject["projects"]?.AsArray()
-			?? throw new InvalidDataException(jsonError);
+			?? throw new InvalidDataException(packageJsonError);
 
 		var frameworks = projects.Where(p =>
 		{
@@ -148,65 +113,46 @@ internal static class Dotnet
 		.SelectMany(p =>
 		{
 			return p?.AsObject()?["frameworks"]?.AsArray()
-				?? throw new InvalidDataException(jsonError);
+				?? throw new InvalidDataException(packageJsonError);
 		});
 
 		var packages = frameworks.SelectMany(f =>
 		{
 			return (f as JsonObject)?["topLevelPackages"]?.AsArray()
-				?? throw new InvalidDataException(jsonError);
+				?? throw new InvalidDataException(packageJsonError);
 		})
-		.Select(p =>
-		{
-			string name = p?["id"]?.AsValue().GetValue<string>()
-				?? throw new InvalidDataException(jsonError);
-
-			string version = p?["requestedVersion"]?.AsValue().GetValue<string>()
-				?? throw new InvalidDataException(jsonError);
-
-			return new Package()
-			{
-				Name = name,
-				Version = version,
-			};
-		})
+		.Select(ExtractPackageFromJsonNode)
 		.DistinctBy(p => p.Name)
 		.ToCollection();
 
 		return packages;
 	}
 
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "False positive: we're using a using declaration")]
+	private static Package ExtractPackageFromJsonNode(JsonNode? p)
+	{
+		string name = p?["id"]?.AsValue().GetValue<string>()
+			?? throw new InvalidDataException(packageJsonError);
+
+		string version = p?["requestedVersion"]?.AsValue().GetValue<string>()
+			?? throw new InvalidDataException(packageJsonError);
+
+		return new Package()
+		{
+			Name = name,
+			Version = version,
+		};
+	}
+
 	internal static Collection<string> UpdatePackages(AbsoluteFilePath projectFile, IEnumerable<Package> packages)
 	{
 		var output = new Collection<string>();
 		foreach (var package in packages)
 		{
-			bool isPreRelease = NuGetVersion.Parse(package.Version).IsPrerelease;
-			using var ps = PowerShell.Create();
-			if (isPreRelease)
-			{
-				var results = ps
-					.AddCommand("dotnet")
-					.AddArgument("add")
-					.AddArgument(projectFile.ToString())
-					.AddArgument("package")
-					.AddArgument(package.Name)
-					.AddArgument("--prerelease")
-					.InvokeAndReturnOutput();
-				output.AddMany(results);
-			}
-			else
-			{
-				var results = ps
-				.AddCommand("dotnet")
-				.AddArgument("add")
-				.AddArgument(projectFile.ToString())
-				.AddArgument("package")
-				.AddArgument(package.Name)
-				.InvokeAndReturnOutput();
-				output.AddMany(results);
-			}
+			Collection<string> results = [];
+			string pre = package.Version.Contains('-') ? "--prerelease" : "";
+			RunCommand.Execute($"dotnet add {projectFile} package {package.Name} {pre}", new LineOutputHandler(results.Add, results.Add));
+
+			output.AddMany(results);
 		}
 
 		return output;
@@ -214,39 +160,27 @@ internal static class Dotnet
 
 	internal static string GetProjectAssemblyName(AbsoluteFilePath projectFile)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("dotnet")
-			.AddArgument("msbuild")
-			.AddArgument(projectFile.ToString())
-			.AddArgument("-getProperty:AssemblyName")
-			.InvokeAndReturnOutput();
+		Collection<string> results = [];
+
+		RunCommand.Execute($"dotnet msbuild {projectFile} -getProperty:AssemblyName", new LineOutputHandler(results.Add, results.Add));
 
 		return results.First();
 	}
 
 	internal static string GetProjectVersion(AbsoluteFilePath projectFile)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("dotnet")
-			.AddArgument("msbuild")
-			.AddArgument(projectFile.ToString())
-			.AddArgument("-getProperty:Version")
-			.InvokeAndReturnOutput();
+		Collection<string> results = [];
+
+		RunCommand.Execute($"dotnet msbuild {projectFile} -getProperty:Version", new LineOutputHandler(results.Add, results.Add));
 
 		return results.First();
 	}
 
 	internal static bool IsProjectPackable(AbsoluteFilePath projectFile)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("dotnet")
-			.AddArgument("msbuild")
-			.AddArgument(projectFile.ToString())
-			.AddArgument("-getProperty:IsPackable")
-			.InvokeAndReturnOutput();
+		Collection<string> results = [];
+
+		RunCommand.Execute($"dotnet msbuild {projectFile} -getProperty:IsPackable", new LineOutputHandler(results.Add, results.Add));
 
 		try
 		{
@@ -285,6 +219,7 @@ internal static class Dotnet
 		{
 			//MaxDegreeOfParallelism = Program.MaxParallelism,
 		},
+		//solutionFileCollection.ForEach(
 		solutionFile =>
 		{
 			var projects = GetProjects(solutionFile)

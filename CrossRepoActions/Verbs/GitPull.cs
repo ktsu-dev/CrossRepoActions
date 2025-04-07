@@ -19,13 +19,31 @@ internal class GitPull : BaseVerb<GitPull>
 		},
 		repo =>
 		{
-			var output = Git.Pull(repo);
-			//output.WriteItemsToConsole();
+			// strip branch names from output because they could get confused with errors if they contain the word "error"
+			string[] remoteBranches = [.. Git.BranchRemote(repo).Select(b => b.RemovePrefix("origin/"))];
+
+			string[] output = [.. Git.Pull(repo).Select(s =>
+			{
+				string sanitized = s;
+				foreach (string branch in remoteBranches)
+				{
+					sanitized = sanitized.Replace("\t", " ");
+					while (sanitized.Contains("  "))
+					{
+						sanitized = sanitized.Replace("  ", " ");
+					}
+
+					sanitized = sanitized.Replace($"{branch} -> origin/{branch}", "");
+				}
+
+				return sanitized;
+			})];
 
 			if (output.Any(s => s.Contains("error")))
 			{
 				string error = $"❌ {System.IO.Path.GetFileName(repo)}";
-				errorSummary.Add(error);
+				string errorOutput = string.Join("\n", output);
+				errorSummary.Add($"{error} - {errorOutput}");
 				Console.WriteLine(error);
 			}
 			else

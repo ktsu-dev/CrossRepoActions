@@ -99,7 +99,12 @@ internal class UpdatePackages : BaseVerb<UpdatePackages>
 				}
 			});
 
-			if (!errorSummary.IsEmpty)
+			if (errorSummary.IsEmpty)
+			{
+				Console.WriteLine();
+				Console.WriteLine("All packages updated successfully!");
+			}
+			else
 			{
 				Console.WriteLine();
 				Console.WriteLine("Failed to update:");
@@ -107,7 +112,7 @@ internal class UpdatePackages : BaseVerb<UpdatePackages>
 				errorSummary.WriteItemsToConsole();
 			}
 
-			Thread.Sleep(1000 * 60 * 5);
+			//Thread.Sleep(1000 * 60 * 5);
 		}
 	}
 }
