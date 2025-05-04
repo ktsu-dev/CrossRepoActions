@@ -1,3 +1,7 @@
+// Copyright (c) ktsu.dev
+// All rights reserved.
+// Licensed under the MIT license.
+
 namespace ktsu.CrossRepoActions;
 
 using System;
@@ -92,7 +96,7 @@ internal static class PowershellExtensions
 				if (s is PSDataCollection<InformationRecord> data)
 				{
 					var newRecord = data[e.Index];
-					string? dataString = newRecord.MessageData?.ToString();
+					var dataString = newRecord.MessageData?.ToString();
 					if (dataString is not null)
 					{
 						collectedOutput.Add(dataString);

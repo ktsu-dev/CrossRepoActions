@@ -1,3 +1,7 @@
+// Copyright (c) ktsu.dev
+// All rights reserved.
+// Licensed under the MIT license.
+
 namespace ktsu.CrossRepoActions.Verbs;
 
 using System.Collections.ObjectModel;
@@ -25,7 +29,7 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 
 		foreach (var solution in solutions)
 		{
-			string cwd = Directory.GetCurrentDirectory();
+			var cwd = Directory.GetCurrentDirectory();
 			Directory.SetCurrentDirectory(solution.Path.DirectoryPath);
 
 			OutputBuildStatus(solution.Path, Status.InProgress, 0);
@@ -60,7 +64,7 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 			}
 
 			var tests = Dotnet.GetTests();
-			int numTests = tests.Count;
+			var numTests = tests.Count;
 			OutputBuildStatus(solution.Path, Status.Success, numTests);
 			projectStatuses.WriteItemsToConsole();
 
@@ -74,10 +78,10 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 				.Where(l => l.EndsWithOrdinal("]") && (l.Contains("Passed") || l.Contains("Failed")))
 				.Select(s =>
 				{
-					string[] parts = s.Split(' ');
-					string statusString = parts[0];
-					string testName = parts[1];
-					string timeString = parts[2];
+					var parts = s.Split(' ');
+					var statusString = parts[0];
+					var testName = parts[1];
+					var timeString = parts[2];
 					var status = statusString switch
 					{
 						"Passed" => Status.Success,
@@ -96,7 +100,7 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 				Console.WriteLine(s);
 				if (s.Contains(GetTestStatusIndicator(Status.Error)))
 				{
-					string[] parts = s.Split(' ');
+					var parts = s.Split(' ');
 					errorSummary.Add($"{parts[0]} {solution.Name}.{parts[1]}");
 				}
 			});
@@ -134,7 +138,7 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 
 	private static void OutputBuildStatus(AbsoluteFilePath solutionFilePath, Status status, int numTests)
 	{
-		string test = numTests > 0 ? $" ({numTests} tests found)" : "";
+		var test = numTests > 0 ? $" ({numTests} tests found)" : "";
 		Console.Write($"\r {GetBuildStatusIndicator(status)} {System.IO.Path.GetFileName(solutionFilePath)}{test}{GetLineEnding(status)}");
 	}
 }

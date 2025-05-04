@@ -1,3 +1,7 @@
+// Copyright (c) ktsu.dev
+// All rights reserved.
+// Licensed under the MIT license.
+
 namespace ktsu.CrossRepoActions.Verbs;
 
 using System.Collections.Concurrent;
@@ -24,7 +28,7 @@ internal class GitPull : BaseVerb<GitPull>
 
 			if (output.Any(s => s.Contains("error")))
 			{
-				string error = $"❌ {System.IO.Path.GetFileName(repo)}";
+				var error = $"❌ {System.IO.Path.GetFileName(repo)}";
 				errorSummary.Add(error);
 				Console.WriteLine(error);
 			}

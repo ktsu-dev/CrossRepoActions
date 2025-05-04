@@ -1,3 +1,7 @@
+// Copyright (c) ktsu.dev
+// All rights reserved.
+// Licensed under the MIT license.
+
 namespace ktsu.CrossRepoActions;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -107,7 +111,7 @@ internal static class Dotnet
 		var dependencies = stringResults
 			.Select(r =>
 			{
-				string[] parts = r.Split(' ');
+				var parts = r.Split(' ');
 				return new Package()
 				{
 					Name = parts[1],
@@ -133,7 +137,7 @@ internal static class Dotnet
 
 		const string jsonError = "Could not parse JSON output from 'dotnet list package --outdated --format-json'";
 
-		string jsonString = string.Join("", jsonResult);
+		var jsonString = string.Join("", jsonResult);
 		var rootObject = JsonNode.Parse(jsonString)?.AsObject()
 			?? throw new InvalidDataException(jsonError);
 
@@ -158,10 +162,10 @@ internal static class Dotnet
 		})
 		.Select(p =>
 		{
-			string name = p?["id"]?.AsValue().GetValue<string>()
+			var name = p?["id"]?.AsValue().GetValue<string>()
 				?? throw new InvalidDataException(jsonError);
 
-			string version = p?["requestedVersion"]?.AsValue().GetValue<string>()
+			var version = p?["requestedVersion"]?.AsValue().GetValue<string>()
 				?? throw new InvalidDataException(jsonError);
 
 			return new Package()
@@ -182,7 +186,7 @@ internal static class Dotnet
 		var output = new Collection<string>();
 		foreach (var package in packages)
 		{
-			bool isPreRelease = NuGetVersion.Parse(package.Version).IsPrerelease;
+			var isPreRelease = NuGetVersion.Parse(package.Version).IsPrerelease;
 			using var ps = PowerShell.Create();
 			if (isPreRelease)
 			{

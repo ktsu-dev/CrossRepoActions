@@ -1,3 +1,7 @@
+// Copyright (c) ktsu.dev
+// All rights reserved.
+// Licensed under the MIT license.
+
 namespace ktsu.CrossRepoActions.Verbs;
 
 using System.Collections.Concurrent;
@@ -30,8 +34,8 @@ internal class UpdatePackages : BaseVerb<UpdatePackages>
 					foreach (var project in solution.Projects)
 					{
 						var solutionDir = solution.Path.DirectoryPath;
-						bool isProjectFileModified = Git.Status(solutionDir, project).Any();
-						bool canCommit = !isProjectFileModified;
+						var isProjectFileModified = Git.Status(solutionDir, project).Any();
+						var canCommit = !isProjectFileModified;
 						var outdatedPackages = Dotnet.GetOutdatedProjectDependencies(project);
 						var results = Dotnet.UpdatePackages(project, outdatedPackages);
 						var upToDate = new Collection<Package>();
@@ -48,14 +52,14 @@ internal class UpdatePackages : BaseVerb<UpdatePackages>
 								continue;
 							}
 
-							bool isUpToDate = results.Any(s => s.Contains($"'{package.Name}' version '{package.Version}' updated", StringComparison.InvariantCultureIgnoreCase));
+							var isUpToDate = results.Any(s => s.Contains($"'{package.Name}' version '{package.Version}' updated", StringComparison.InvariantCultureIgnoreCase));
 							if (isUpToDate)
 							{
 								upToDate.Add(package);
 								continue;
 							}
 
-							bool wasUpdated = results.Any(s => s.Contains($"'{package.Name}' version", StringComparison.InvariantCultureIgnoreCase) && s.Contains("updated in file", StringComparison.InvariantCultureIgnoreCase) && !s.Contains($"version '{package.Version}'", StringComparison.InvariantCultureIgnoreCase));
+							var wasUpdated = results.Any(s => s.Contains($"'{package.Name}' version", StringComparison.InvariantCultureIgnoreCase) && s.Contains("updated in file", StringComparison.InvariantCultureIgnoreCase) && !s.Contains($"version '{package.Version}'", StringComparison.InvariantCultureIgnoreCase));
 							if (wasUpdated)
 							{
 								updated.Add(package);
@@ -63,10 +67,10 @@ internal class UpdatePackages : BaseVerb<UpdatePackages>
 							}
 						}
 
-						string projectStatus = $"✅ {project.FileName}";
+						var projectStatus = $"✅ {project.FileName}";
 						if (errored.Count != 0)
 						{
-							string error = $"❌ {project.FileName}";
+							var error = $"❌ {project.FileName}";
 							errorSummary.Add(error);
 							projectStatus = error;
 						}
