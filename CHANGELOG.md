@@ -1,6 +1,6 @@
-## v1.2.3-pre.16 (prerelease)
+## v1.2.3-pre.17 (prerelease)
 
-Changes since v1.2.3-pre.15:
+Changes since v1.2.3-pre.16:
 
 - Update project SDK and remove unused package references ([@matt-edmondson](https://github.com/matt-edmondson))
 - Add automation scripts for metadata and version management ([@matt-edmondson](https://github.com/matt-edmondson))
