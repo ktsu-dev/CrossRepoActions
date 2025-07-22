@@ -12,7 +12,7 @@ internal static class Git
 {
 	internal static IEnumerable<AbsoluteDirectoryPath> DiscoverRepositories(AbsoluteDirectoryPath root)
 	{
-		PersistentState persistentState = PersistentState.Get();
+		var persistentState = PersistentState.Get();
 		if (persistentState.CachedRepos.Count > 0)
 		{
 			return persistentState.CachedRepos;
@@ -31,15 +31,7 @@ internal static class Git
 
 	internal static IEnumerable<string> Pull(AbsoluteDirectoryPath repo)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("pull")
-			.AddArgument("--all")
-			.AddArgument("-v")
-			.InvokeAndReturnOutput(PowershellStreams.All);
+		Collection<string> results = [];
 
 		RunCommand.Execute($"git -C {repo} pull --all -v", new LineOutputHandler(s => results.Add(s.Trim()), s => results.Add(s.Trim())));
 

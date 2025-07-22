@@ -12,7 +12,7 @@ internal class GitPull : BaseVerb<GitPull>
 	internal override void Run(GitPull options)
 	{
 		ConcurrentBag<string> errorSummary = [];
-		IEnumerable<StrongPaths.AbsoluteDirectoryPath> repos = Git.DiscoverRepositories(options.Path);
+		var repos = Git.DiscoverRepositories(options.Path);
 		_ = Parallel.ForEach(repos, new()
 		{
 			MaxDegreeOfParallelism = Program.MaxParallelism,

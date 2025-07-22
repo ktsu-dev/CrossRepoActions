@@ -105,9 +105,9 @@ internal static class Dotnet
 		var projects = rootObject["projects"]?.AsArray()
 			?? throw new InvalidDataException(packageJsonError);
 
-		IEnumerable<JsonNode?> frameworks = projects.Where(p =>
+		var frameworks = projects.Where(p =>
 		{
-			JsonObject? pObj = p?.AsObject();
+			var pObj = p?.AsObject();
 			return pObj?["frameworks"]?.AsArray() != null;
 		})
 		.SelectMany(p =>
@@ -116,7 +116,7 @@ internal static class Dotnet
 				?? throw new InvalidDataException(packageJsonError);
 		});
 
-		Collection<Package> packages = frameworks.SelectMany(f =>
+		var packages = frameworks.SelectMany(f =>
 		{
 			return (f as JsonObject)?["topLevelPackages"]?.AsArray()
 				?? throw new InvalidDataException(packageJsonError);
@@ -146,7 +146,7 @@ internal static class Dotnet
 	internal static Collection<string> UpdatePackages(AbsoluteFilePath projectFile, IEnumerable<Package> packages)
 	{
 		Collection<string> output = [];
-		foreach (Package package in packages)
+		foreach (var package in packages)
 		{
 			Collection<string> results = [];
 			string pre = package.Version.Contains('-') ? "--prerelease" : "";
@@ -209,7 +209,7 @@ internal static class Dotnet
 	private static object ConsoleLock { get; } = new();
 	internal static Collection<Solution> DiscoverSolutionDependencies(IEnumerable<AbsoluteFilePath> solutionFiles)
 	{
-		Collection<AbsoluteFilePath> solutionFileCollection = solutionFiles.ToCollection();
+		var solutionFileCollection = solutionFiles.ToCollection();
 		ConcurrentBag<Solution> solutions = [];
 
 		ProgressBar progressBar = new();
@@ -222,16 +222,16 @@ internal static class Dotnet
 		//solutionFileCollection.ForEach(
 		solutionFile =>
 		{
-			Collection<AbsoluteFilePath> projects = GetProjects(solutionFile)
+			var projects = GetProjects(solutionFile)
 				.Select(p => solutionFile.DirectoryPath / p.As<RelativeFilePath>())
 				.ToCollection();
 
-			Collection<Package> packages = projects
+			var packages = projects
 				.Where(p => IsProjectPackable(p))
 				.Select(p => GetProjectPackage(p))
 				.ToCollection();
 
-			Collection<Package> dependencies = GetSolutionDependencies(solutionFile);
+			var dependencies = GetSolutionDependencies(solutionFile);
 
 			Solution solution = new()
 			{
@@ -258,20 +258,20 @@ internal static class Dotnet
 
 	internal static Collection<Solution> SortSolutionsByDependencies(ICollection<Solution> solutions)
 	{
-		Collection<Solution> unsatisfiedSolutions = solutions.ToCollection();
+		var unsatisfiedSolutions = solutions.ToCollection();
 		Collection<Solution> sortedSolutions = [];
 
 		while (unsatisfiedSolutions.Count != 0)
 		{
-			Collection<Package> unsatisfiedPackages = unsatisfiedSolutions
+			var unsatisfiedPackages = unsatisfiedSolutions
 				.SelectMany(s => s.Packages)
 				.ToCollection();
 
-			Collection<Solution> satisfied = unsatisfiedSolutions
+			var satisfied = unsatisfiedSolutions
 				.Where(s => !s.Dependencies.IntersectBy(unsatisfiedPackages.Select(p => p.Name), p => p.Name).Any())
 				.ToCollection();
 
-			foreach (Solution? solution in satisfied)
+			foreach (var solution in satisfied)
 			{
 				unsatisfiedSolutions.Remove(solution);
 				sortedSolutions.Add(solution);
@@ -291,7 +291,7 @@ internal static class Dotnet
 
 	internal static Collection<Solution> DiscoverSolutions(AbsoluteDirectoryPath root)
 	{
-		PersistentState persistentState = PersistentState.Get();
+		var persistentState = PersistentState.Get();
 		if (persistentState.CachedSolutions.Count > 0)
 		{
 			return persistentState.CachedSolutions;
@@ -307,8 +307,8 @@ internal static class Dotnet
 
 	internal static bool IsSolutionNested(AbsoluteFilePath solutionPath)
 	{
-		AbsoluteDirectoryPath solutionDir = solutionPath.DirectoryPath;
-		AbsoluteDirectoryPath checkDir = solutionDir;
+		var solutionDir = solutionPath.DirectoryPath;
+		var checkDir = solutionDir;
 		do
 		{
 			checkDir = checkDir.Parent;

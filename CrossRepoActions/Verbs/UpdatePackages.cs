@@ -17,7 +17,7 @@ internal class UpdatePackages : BaseVerb<UpdatePackages>
 		while (true)
 		{
 			ConcurrentBag<string> errorSummary = [];
-			Collection<Solution> solutions = Dotnet.DiscoverSolutions(options.Path);
+			var solutions = Dotnet.DiscoverSolutions(options.Path);
 
 			_ = Parallel.ForEach(solutions, new()
 			{
@@ -27,7 +27,7 @@ internal class UpdatePackages : BaseVerb<UpdatePackages>
 			{
 				try
 				{
-					foreach (StrongPaths.AbsoluteFilePath project in solution.Projects)
+					foreach (var project in solution.Projects)
 					{
 						var solutionDir = solution.Path.DirectoryPath;
 						bool isProjectFileModified = Git.Status(solutionDir, project).Any();
@@ -40,7 +40,7 @@ internal class UpdatePackages : BaseVerb<UpdatePackages>
 						var errorLines = new Collection<string>();
 						foreach (var package in outdatedPackages)
 						{
-							IEnumerable<string> packageErrors = results.Where(s => s.Contains($"{package.Name}") && s.Contains("error", StringComparison.InvariantCultureIgnoreCase) && !s.Contains("imported file", StringComparison.InvariantCultureIgnoreCase));
+							var packageErrors = results.Where(s => s.Contains($"{package.Name}") && s.Contains("error", StringComparison.InvariantCultureIgnoreCase) && !s.Contains("imported file", StringComparison.InvariantCultureIgnoreCase));
 							if (packageErrors.Any())
 							{
 								errorLines.AddMany(packageErrors);

@@ -40,7 +40,7 @@ internal class Menu : BaseVerb<Menu>
 
 	private static LabelMenuItem CreateMenuItem(Type verbType)
 	{
-		BaseVerb? verb = Activator.CreateInstance(verbType) as BaseVerb;
+		var verb = Activator.CreateInstance(verbType) as BaseVerb;
 		Debug.Assert(verb != null);
 		return new LabelMenuItem()
 		{
