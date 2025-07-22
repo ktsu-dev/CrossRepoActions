@@ -47,7 +47,7 @@ internal static class Dotnet
 		RunCommand.Execute($"dotnet vstest --ListTests --nologo **/bin/**/*Test.dll", new LineOutputHandler(results.Add, results.Add));
 
 		var filteredResults = results
-			.Where(r => !r.StartsWith("The following") && !r.StartsWith("No test source"))
+			.Where(r => r is not null && !r.StartsWith("The following") && !r.StartsWith("No test source"))
 			.ToCollection();
 
 		return filteredResults;
@@ -60,7 +60,7 @@ internal static class Dotnet
 		RunCommand.Execute($"dotnet sln {solutionFile} list", new LineOutputHandler(results.Add, results.Add));
 
 		var filteredResults = results
-			.Where(r => r.EndsWithOrdinal(".csproj"))
+			.Where(r => r is not null && r.EndsWithOrdinal(".csproj"))
 			.ToCollection();
 
 		return filteredResults;
@@ -73,7 +73,7 @@ internal static class Dotnet
 		RunCommand.Execute($"dotnet list {solutionFile} package --include-transitive", new LineOutputHandler(results.Add, results.Add));
 
 		var filteredResults = results
-			.Where(r => r.StartsWithOrdinal(">"))
+			.Where(r => r is not null && r.StartsWithOrdinal(">"))
 			.ToCollection();
 
 		var dependencies = filteredResults
@@ -202,7 +202,7 @@ internal static class Dotnet
 	}
 
 	internal static Collection<string> GetErrors(IEnumerable<string> strings) =>
-		strings.Where(r => (r.Contains("error") || r.Contains("failed"))
+		strings.Where(r => r is not null && (r.Contains("error") || r.Contains("failed"))
 						&& !(r.Contains("passed") || r.Contains("0 Error")))
 			.ToCollection();
 
