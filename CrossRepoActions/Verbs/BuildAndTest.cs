@@ -20,23 +20,23 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 
 	internal override void Run(BuildAndTest options)
 	{
-		var solutions = Dotnet.DiscoverSolutions(options.Path);
-		var errorSummary = new Collection<string>();
+		Collection<Solution> solutions = Dotnet.DiscoverSolutions(options.Path);
+		Collection<string> errorSummary = [];
 
-		foreach (var solution in solutions)
+		foreach (Solution solution in solutions)
 		{
 			string cwd = Directory.GetCurrentDirectory();
 			Directory.SetCurrentDirectory(solution.Path.DirectoryPath);
 
 			OutputBuildStatus(solution.Path, Status.InProgress, 0);
 
-			var solutionErrors = new Collection<string>();
-			var projectStatuses = new Collection<string>();
-			var projectErrors = new Collection<string>();
+			Collection<string> solutionErrors = [];
+			Collection<string> projectStatuses = [];
+			Collection<string> projectErrors = [];
 
-			foreach (var project in solution.Projects)
+			foreach (AbsoluteFilePath project in solution.Projects)
 			{
-				var results = Dotnet.BuildProject(project);
+				Collection<string> results = Dotnet.BuildProject(project);
 				solutionErrors.AddMany(results);
 				if (results.Count != 0)
 				{
@@ -69,7 +69,7 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 				continue;
 			}
 
-			var testOutput = Dotnet.RunTests();
+			Collection<string> testOutput = Dotnet.RunTests();
 			testOutput = testOutput
 				.Where(l => l.EndsWithOrdinal("]") && (l.Contains("Passed") || l.Contains("Failed")))
 				.Select(s =>

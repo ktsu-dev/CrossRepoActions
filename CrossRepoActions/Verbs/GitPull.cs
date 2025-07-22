@@ -11,8 +11,8 @@ internal class GitPull : BaseVerb<GitPull>
 {
 	internal override void Run(GitPull options)
 	{
-		var errorSummary = new ConcurrentBag<string>();
-		var repos = Git.DiscoverRepositories(options.Path);
+		ConcurrentBag<string> errorSummary = [];
+		IEnumerable<StrongPaths.AbsoluteDirectoryPath> repos = Git.DiscoverRepositories(options.Path);
 		_ = Parallel.ForEach(repos, new()
 		{
 			MaxDegreeOfParallelism = Program.MaxParallelism,

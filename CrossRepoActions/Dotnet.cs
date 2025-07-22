@@ -105,9 +105,9 @@ internal static class Dotnet
 		var projects = rootObject["projects"]?.AsArray()
 			?? throw new InvalidDataException(packageJsonError);
 
-		var frameworks = projects.Where(p =>
+		IEnumerable<JsonNode?> frameworks = projects.Where(p =>
 		{
-			var pObj = p?.AsObject();
+			JsonObject? pObj = p?.AsObject();
 			return pObj?["frameworks"]?.AsArray() != null;
 		})
 		.SelectMany(p =>
@@ -116,7 +116,7 @@ internal static class Dotnet
 				?? throw new InvalidDataException(packageJsonError);
 		});
 
-		var packages = frameworks.SelectMany(f =>
+		Collection<Package> packages = frameworks.SelectMany(f =>
 		{
 			return (f as JsonObject)?["topLevelPackages"]?.AsArray()
 				?? throw new InvalidDataException(packageJsonError);
@@ -145,8 +145,8 @@ internal static class Dotnet
 
 	internal static Collection<string> UpdatePackages(AbsoluteFilePath projectFile, IEnumerable<Package> packages)
 	{
-		var output = new Collection<string>();
-		foreach (var package in packages)
+		Collection<string> output = [];
+		foreach (Package package in packages)
 		{
 			Collection<string> results = [];
 			string pre = package.Version.Contains('-') ? "--prerelease" : "";
@@ -209,10 +209,10 @@ internal static class Dotnet
 	private static object ConsoleLock { get; } = new();
 	internal static Collection<Solution> DiscoverSolutionDependencies(IEnumerable<AbsoluteFilePath> solutionFiles)
 	{
-		var solutionFileCollection = solutionFiles.ToCollection();
-		var solutions = new ConcurrentBag<Solution>();
+		Collection<AbsoluteFilePath> solutionFileCollection = solutionFiles.ToCollection();
+		ConcurrentBag<Solution> solutions = [];
 
-		var progressBar = new ProgressBar();
+		ProgressBar progressBar = new();
 		progressBar.Display();
 
 		_ = Parallel.ForEach(solutionFileCollection, new()
@@ -222,18 +222,18 @@ internal static class Dotnet
 		//solutionFileCollection.ForEach(
 		solutionFile =>
 		{
-			var projects = GetProjects(solutionFile)
+			Collection<AbsoluteFilePath> projects = GetProjects(solutionFile)
 				.Select(p => solutionFile.DirectoryPath / p.As<RelativeFilePath>())
 				.ToCollection();
 
-			var packages = projects
+			Collection<Package> packages = projects
 				.Where(p => IsProjectPackable(p))
 				.Select(p => GetProjectPackage(p))
 				.ToCollection();
 
-			var dependencies = GetSolutionDependencies(solutionFile);
+			Collection<Package> dependencies = GetSolutionDependencies(solutionFile);
 
-			var solution = new Solution()
+			Solution solution = new()
 			{
 				Name = Path.GetFileNameWithoutExtension(solutionFile.FileName),
 				Path = solutionFile,
@@ -258,20 +258,20 @@ internal static class Dotnet
 
 	internal static Collection<Solution> SortSolutionsByDependencies(ICollection<Solution> solutions)
 	{
-		var unsatisfiedSolutions = solutions.ToCollection();
-		var sortedSolutions = new Collection<Solution>();
+		Collection<Solution> unsatisfiedSolutions = solutions.ToCollection();
+		Collection<Solution> sortedSolutions = [];
 
 		while (unsatisfiedSolutions.Count != 0)
 		{
-			var unsatisfiedPackages = unsatisfiedSolutions
+			Collection<Package> unsatisfiedPackages = unsatisfiedSolutions
 				.SelectMany(s => s.Packages)
 				.ToCollection();
 
-			var satisfied = unsatisfiedSolutions
+			Collection<Solution> satisfied = unsatisfiedSolutions
 				.Where(s => !s.Dependencies.IntersectBy(unsatisfiedPackages.Select(p => p.Name), p => p.Name).Any())
 				.ToCollection();
 
-			foreach (var solution in satisfied)
+			foreach (Solution? solution in satisfied)
 			{
 				unsatisfiedSolutions.Remove(solution);
 				sortedSolutions.Add(solution);
@@ -291,7 +291,7 @@ internal static class Dotnet
 
 	internal static Collection<Solution> DiscoverSolutions(AbsoluteDirectoryPath root)
 	{
-		var persistentState = PersistentState.Get();
+		PersistentState persistentState = PersistentState.Get();
 		if (persistentState.CachedSolutions.Count > 0)
 		{
 			return persistentState.CachedSolutions;
@@ -307,8 +307,8 @@ internal static class Dotnet
 
 	internal static bool IsSolutionNested(AbsoluteFilePath solutionPath)
 	{
-		var solutionDir = solutionPath.DirectoryPath;
-		var checkDir = solutionDir;
+		AbsoluteDirectoryPath solutionDir = solutionPath.DirectoryPath;
+		AbsoluteDirectoryPath checkDir = solutionDir;
 		do
 		{
 			checkDir = checkDir.Parent;
