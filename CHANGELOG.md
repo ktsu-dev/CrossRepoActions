@@ -2,7 +2,9 @@
 
 Changes since v1.2.2:
 
+- Update README.md with detailed usage instructions and command descriptions ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update project configuration and dependencies ([@matt-edmondson](https://github.com/matt-edmondson))
+- Add CLAUDE.md for project guidance and development instructions ([@matt-edmondson](https://github.com/matt-edmondson))
 ## v1.2.3-pre.22 (prerelease)
 
 Changes since v1.2.3-pre.21:
