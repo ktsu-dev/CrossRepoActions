@@ -1,9 +1,5 @@
-## v1.2.3 (patch)
+## v1.2.4 (patch)
 
-Changes since v1.2.2:
+Changes since v1.2.3:
 
-- Update README.md with detailed usage instructions and command descriptions ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor CrossRepoActions project structure and update dependencies ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add CLAUDE.md and README.md ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update project configuration and dependencies ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add CLAUDE.md for project guidance and development instructions ([@matt-edmondson](https://github.com/matt-edmondson))
+- Improve error handling in GitPull by specifying error conditions ([@matt-edmondson](https://github.com/matt-edmondson))
