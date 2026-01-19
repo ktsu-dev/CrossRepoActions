@@ -1,5 +1,6 @@
-## v1.2.4 (patch)
+## v1.2.5-pre.1 (prerelease)
 
-Changes since v1.2.3:
+Changes since v1.2.4:
 
-- Improve error handling in GitPull by specifying error conditions ([@matt-edmondson](https://github.com/matt-edmondson))
+- Bump the ktsu group with 3 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump MSTest.Sdk from 3.10.2 to 4.0.2 ([@dependabot[bot]](https://github.com/dependabot[bot]))
