@@ -27,7 +27,9 @@ internal sealed class GitPull : BaseVerb<GitPull>
 			IEnumerable<string> output = Git.Pull(repo);
 			//output.WriteItemsToConsole();
 
-			if (output.Any(s => s.Contains("error")))
+			if (output.Any(s => s.StartsWith("error:", StringComparison.OrdinalIgnoreCase)
+				|| s.StartsWith("fatal:", StringComparison.OrdinalIgnoreCase)
+				|| s.Contains("CONFLICT")))
 			{
 				string error = $"❌ {System.IO.Path.GetFileName(repo)}";
 				errorSummary.Add(error);
