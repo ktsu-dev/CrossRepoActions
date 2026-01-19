@@ -14,26 +14,25 @@ using DustInTheWind.ConsoleTools.Controls.Menus;
 using DustInTheWind.ConsoleTools.Controls.Menus.MenuItems;
 
 [Verb("Menu", isDefault: true)]
-internal class Menu : BaseVerb<Menu>
+internal sealed class Menu : BaseVerb<Menu>
 {
 	internal override void Run(Menu options)
 	{
-		var scrollMenu = new ScrollMenu()
+		ScrollMenu scrollMenu = new()
 		{
 			HorizontalAlignment = HorizontalAlignment.Left,
 			ItemsHorizontalAlignment = HorizontalAlignment.Left,
 			KeepHighlightingOnClose = true,
 		};
 
-		var menuRepeater = new ControlRepeater()
+		ControlRepeater menuRepeater = new()
 		{
 			Control = scrollMenu,
 		};
 
-		var menuItems = Program.Verbs
+		LabelMenuItem[] menuItems = [.. Program.Verbs
 			.Where(verb => verb != GetType())
-			.Select(CreateMenuItem)
-			.ToArray();
+			.Select(CreateMenuItem)];
 
 		scrollMenu.AddItems(menuItems);
 
@@ -45,7 +44,7 @@ internal class Menu : BaseVerb<Menu>
 
 	private static LabelMenuItem CreateMenuItem(Type verbType)
 	{
-		var verb = Activator.CreateInstance(verbType) as BaseVerb;
+		BaseVerb? verb = Activator.CreateInstance(verbType) as BaseVerb;
 		Debug.Assert(verb != null);
 		return new LabelMenuItem()
 		{

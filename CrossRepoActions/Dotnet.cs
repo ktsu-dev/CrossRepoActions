@@ -3,6 +3,7 @@
 // Licensed under the MIT license.
 
 namespace ktsu.CrossRepoActions;
+
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -13,7 +14,8 @@ using System.Text.Json.Nodes;
 using DustInTheWind.ConsoleTools.Controls.Spinners;
 
 using ktsu.Extensions;
-using ktsu.StrongPaths;
+using ktsu.Semantics.Paths;
+using ktsu.Semantics.Strings;
 
 using NuGet.Versioning;
 
@@ -21,8 +23,8 @@ internal static class Dotnet
 {
 	internal static Collection<string> BuildSolution()
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("dotnet")
 			.AddArgument("build")
 			.AddArgument("--nologo")
@@ -33,8 +35,8 @@ internal static class Dotnet
 
 	internal static Collection<string> BuildProject(AbsoluteFilePath projectFile)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("dotnet")
 			.AddArgument("build")
 			.AddArgument("--nologo")
@@ -46,8 +48,8 @@ internal static class Dotnet
 
 	internal static Collection<string> RunTests()
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("dotnet")
 			.AddArgument("vstest")
 			.AddArgument("**/bin/**/*Test.dll")
@@ -60,8 +62,8 @@ internal static class Dotnet
 
 	internal static Collection<string> GetTests()
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("dotnet")
 			.AddArgument("vstest")
 			.AddArgument("--ListTests")
@@ -69,7 +71,7 @@ internal static class Dotnet
 			.AddArgument("**/bin/**/*Test.dll")
 			.InvokeAndReturnOutput();
 
-		var stringResults = results
+		Collection<string> stringResults = results
 			.Where(r => !r.StartsWith("The following") && !r.StartsWith("No test source"))
 			.ToCollection();
 
@@ -78,15 +80,15 @@ internal static class Dotnet
 
 	internal static Collection<string> GetProjects(AbsoluteFilePath solutionFile)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("dotnet")
 			.AddArgument("sln")
 			.AddArgument(solutionFile.ToString())
 			.AddArgument("list")
 			.InvokeAndReturnOutput();
 
-		var stringResults = results
+		Collection<string> stringResults = results
 			.Where(r => r.EndsWithOrdinal(".csproj"))
 			.ToCollection();
 
@@ -95,8 +97,8 @@ internal static class Dotnet
 
 	internal static Collection<Package> GetSolutionDependencies(AbsoluteFilePath solutionFile)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("dotnet")
 			.AddArgument("list")
 			.AddArgument(solutionFile.ToString())
@@ -104,14 +106,14 @@ internal static class Dotnet
 			.AddArgument("--include-transitive")
 			.InvokeAndReturnOutput();
 
-		var stringResults = results
+		Collection<string> stringResults = results
 			.Where(r => r.StartsWithOrdinal(">"))
 			.ToCollection();
 
-		var dependencies = stringResults
+		Collection<Package> dependencies = stringResults
 			.Select(r =>
 			{
-				var parts = r.Split(' ');
+				string[] parts = r.Split(' ');
 				return new Package()
 				{
 					Name = parts[1],
@@ -125,8 +127,8 @@ internal static class Dotnet
 
 	internal static Collection<Package> GetOutdatedProjectDependencies(AbsoluteFilePath projectFile)
 	{
-		using var ps = PowerShell.Create();
-		var jsonResult = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> jsonResult = ps
 			.AddCommand("dotnet")
 			.AddArgument("list")
 			.AddArgument(projectFile.ToString())
@@ -135,38 +137,53 @@ internal static class Dotnet
 			.AddArgument("--format=json")
 			.InvokeAndReturnOutput();
 
-		const string jsonError = "Could not parse JSON output from 'dotnet list package --outdated --format-json'";
+		string jsonString = string.Join("", jsonResult);
 
-		var jsonString = string.Join("", jsonResult);
-		var rootObject = JsonNode.Parse(jsonString)?.AsObject()
-			?? throw new InvalidDataException(jsonError);
-
-		var projects = rootObject["projects"]?.AsArray()
-			?? throw new InvalidDataException(jsonError);
-
-		var frameworks = projects.Where(p =>
+		// If the output is empty or doesn't contain valid JSON, return empty collection
+		if (string.IsNullOrWhiteSpace(jsonString) || !jsonString.TrimStart().StartsWith('{'))
 		{
-			var pObj = p?.AsObject();
+			return [];
+		}
+
+		JsonObject? rootObject;
+		try
+		{
+			rootObject = JsonNode.Parse(jsonString)?.AsObject();
+		}
+		catch (System.Text.Json.JsonException)
+		{
+			// If JSON parsing fails, return empty collection (no outdated packages or error in output)
+			return [];
+		}
+
+		if (rootObject == null)
+		{
+			return [];
+		}
+
+		JsonArray? projects = rootObject["projects"]?.AsArray();
+		if (projects == null)
+		{
+			return [];
+		}
+
+		IEnumerable<JsonNode?> frameworks = projects.Where(p =>
+		{
+			JsonObject? pObj = p?.AsObject();
 			return pObj?["frameworks"]?.AsArray() != null;
 		})
-		.SelectMany(p =>
-		{
-			return p?.AsObject()?["frameworks"]?.AsArray()
-				?? throw new InvalidDataException(jsonError);
-		});
+		.SelectMany(p => p?.AsObject()?["frameworks"]?.AsArray() ?? []);
 
-		var packages = frameworks.SelectMany(f =>
-		{
-			return (f as JsonObject)?["topLevelPackages"]?.AsArray()
-				?? throw new InvalidDataException(jsonError);
-		})
+		Collection<Package> packages = frameworks.SelectMany(f => (f as JsonObject)?["topLevelPackages"]?.AsArray() ?? [])
 		.Select(p =>
 		{
-			var name = p?["id"]?.AsValue().GetValue<string>()
-				?? throw new InvalidDataException(jsonError);
+			string? name = p?["id"]?.AsValue().GetValue<string>();
+			string? version = p?["requestedVersion"]?.AsValue().GetValue<string>();
 
-			var version = p?["requestedVersion"]?.AsValue().GetValue<string>()
-				?? throw new InvalidDataException(jsonError);
+			if (name == null || version == null)
+			{
+				return null;
+			}
 
 			return new Package()
 			{
@@ -174,8 +191,9 @@ internal static class Dotnet
 				Version = version,
 			};
 		})
-		.DistinctBy(p => p.Name)
-		.ToCollection();
+		.Where(p => p != null)
+		.DistinctBy(p => p!.Name)
+		.ToCollection()!;
 
 		return packages;
 	}
@@ -183,14 +201,14 @@ internal static class Dotnet
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "False positive: we're using a using declaration")]
 	internal static Collection<string> UpdatePackages(AbsoluteFilePath projectFile, IEnumerable<Package> packages)
 	{
-		var output = new Collection<string>();
-		foreach (var package in packages)
+		Collection<string> output = [];
+		foreach (Package package in packages)
 		{
-			var isPreRelease = NuGetVersion.Parse(package.Version).IsPrerelease;
-			using var ps = PowerShell.Create();
+			bool isPreRelease = NuGetVersion.Parse(package.Version).IsPrerelease;
+			using PowerShell ps = PowerShell.Create();
 			if (isPreRelease)
 			{
-				var results = ps
+				Collection<string> results = ps
 					.AddCommand("dotnet")
 					.AddArgument("add")
 					.AddArgument(projectFile.ToString())
@@ -198,18 +216,18 @@ internal static class Dotnet
 					.AddArgument(package.Name)
 					.AddArgument("--prerelease")
 					.InvokeAndReturnOutput();
-				output.AddMany(results);
+				output.AddFrom(results);
 			}
 			else
 			{
-				var results = ps
+				Collection<string> results = ps
 				.AddCommand("dotnet")
 				.AddArgument("add")
 				.AddArgument(projectFile.ToString())
 				.AddArgument("package")
 				.AddArgument(package.Name)
 				.InvokeAndReturnOutput();
-				output.AddMany(results);
+				output.AddFrom(results);
 			}
 		}
 
@@ -218,8 +236,8 @@ internal static class Dotnet
 
 	internal static string GetProjectAssemblyName(AbsoluteFilePath projectFile)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("dotnet")
 			.AddArgument("msbuild")
 			.AddArgument(projectFile.ToString())
@@ -231,8 +249,8 @@ internal static class Dotnet
 
 	internal static string GetProjectVersion(AbsoluteFilePath projectFile)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("dotnet")
 			.AddArgument("msbuild")
 			.AddArgument(projectFile.ToString())
@@ -244,8 +262,8 @@ internal static class Dotnet
 
 	internal static bool IsProjectPackable(AbsoluteFilePath projectFile)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("dotnet")
 			.AddArgument("msbuild")
 			.AddArgument(projectFile.ToString())
@@ -279,10 +297,10 @@ internal static class Dotnet
 	private static object ConsoleLock { get; } = new();
 	internal static Collection<Solution> DiscoverSolutionDependencies(IEnumerable<AbsoluteFilePath> solutionFiles)
 	{
-		var solutionFileCollection = solutionFiles.ToCollection();
-		var solutions = new ConcurrentBag<Solution>();
+		Collection<AbsoluteFilePath> solutionFileCollection = solutionFiles.ToCollection();
+		ConcurrentBag<Solution> solutions = [];
 
-		var progressBar = new ProgressBar();
+		ProgressBar progressBar = new();
 		progressBar.Display();
 
 		_ = Parallel.ForEach(solutionFileCollection, new()
@@ -291,18 +309,19 @@ internal static class Dotnet
 		},
 		solutionFile =>
 		{
-			var projects = GetProjects(solutionFile)
-				.Select(p => solutionFile.DirectoryPath / p.As<RelativeFilePath>())
+			AbsoluteDirectoryPath solutionDirectoryPath = solutionFile.DirectoryPath.AsAbsolute();
+			Collection<AbsoluteFilePath> projects = GetProjects(solutionFile)
+				.Select(p => solutionDirectoryPath / p.As<RelativeFilePath>())
 				.ToCollection();
 
-			var packages = projects
+			Collection<Package> packages = projects
 				.Where(p => IsProjectPackable(p))
 				.Select(p => GetProjectPackage(p))
 				.ToCollection();
 
-			var dependencies = GetSolutionDependencies(solutionFile);
+			Collection<Package> dependencies = GetSolutionDependencies(solutionFile);
 
-			var solution = new Solution()
+			Solution solution = new()
 			{
 				Name = Path.GetFileNameWithoutExtension(solutionFile.FileName),
 				Path = solutionFile,
@@ -327,20 +346,20 @@ internal static class Dotnet
 
 	internal static Collection<Solution> SortSolutionsByDependencies(ICollection<Solution> solutions)
 	{
-		var unsatisfiedSolutions = solutions.ToCollection();
-		var sortedSolutions = new Collection<Solution>();
+		Collection<Solution> unsatisfiedSolutions = solutions.ToCollection();
+		Collection<Solution> sortedSolutions = [];
 
 		while (unsatisfiedSolutions.Count != 0)
 		{
-			var unsatisfiedPackages = unsatisfiedSolutions
+			Collection<Package> unsatisfiedPackages = unsatisfiedSolutions
 				.SelectMany(s => s.Packages)
 				.ToCollection();
 
-			var satisfied = unsatisfiedSolutions
+			Collection<Solution> satisfied = unsatisfiedSolutions
 				.Where(s => !s.Dependencies.IntersectBy(unsatisfiedPackages.Select(p => p.Name), p => p.Name).Any())
 				.ToCollection();
 
-			foreach (var solution in satisfied)
+			foreach (Solution solution in satisfied)
 			{
 				unsatisfiedSolutions.Remove(solution);
 				sortedSolutions.Add(solution);
@@ -360,7 +379,7 @@ internal static class Dotnet
 
 	internal static Collection<Solution> DiscoverSolutions(AbsoluteDirectoryPath root)
 	{
-		var persistentState = PersistentState.Get();
+		PersistentState persistentState = PersistentState.Get();
 		if (persistentState.CachedSolutions.Count > 0)
 		{
 			return persistentState.CachedSolutions;
@@ -376,11 +395,18 @@ internal static class Dotnet
 
 	internal static bool IsSolutionNested(AbsoluteFilePath solutionPath)
 	{
-		var solutionDir = solutionPath.DirectoryPath;
-		var checkDir = solutionDir;
+		DirectoryPath solutionDir = solutionPath.DirectoryPath;
+		DirectoryPath checkDir = solutionDir;
 		do
 		{
 			checkDir = checkDir.Parent;
+
+			// Stop if we've reached an empty or invalid parent (root of drive)
+			if (string.IsNullOrEmpty(checkDir.ToString()))
+			{
+				break;
+			}
+
 			if (Directory.EnumerateFiles(checkDir, "*.sln", SearchOption.TopDirectoryOnly).Any())
 			{
 				return true;

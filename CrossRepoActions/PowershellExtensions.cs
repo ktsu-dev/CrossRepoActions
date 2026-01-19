@@ -28,19 +28,19 @@ internal static class PowershellExtensions
 {
 	internal static Collection<string> InvokeAndReturnOutput(this PowerShell ps, PowershellStreams streams = PowershellStreams.Default)
 	{
-		using var input = new PSDataCollection<PSObject>();
+		using PSDataCollection<PSObject> input = [];
 		input.Complete();
 
-		var collectedOutput = new Collection<string>();
+		Collection<string> collectedOutput = [];
 
-		using var stdOutput = new PSDataCollection<PSObject>();
+		using PSDataCollection<PSObject> stdOutput = [];
 		if (streams.HasFlag(PowershellStreams.Output))
 		{
 			stdOutput.DataAdded += (s, e) =>
 			{
 				if (s is PSDataCollection<PSObject> data)
 				{
-					var newRecord = data[e.Index];
+					PSObject newRecord = data[e.Index];
 					collectedOutput.Add(newRecord.ToString());
 				}
 			};
@@ -48,12 +48,12 @@ internal static class PowershellExtensions
 
 		if (streams.HasFlag(PowershellStreams.Verbose))
 		{
-			var verboseOutput = new PSDataCollection<VerboseRecord>();
+			PSDataCollection<VerboseRecord> verboseOutput = [];
 			verboseOutput.DataAdded += (s, e) =>
 			{
 				if (s is PSDataCollection<VerboseRecord> data)
 				{
-					var newRecord = data[e.Index];
+					VerboseRecord newRecord = data[e.Index];
 					collectedOutput.Add(newRecord.Message);
 				}
 			};
@@ -62,12 +62,12 @@ internal static class PowershellExtensions
 
 		if (streams.HasFlag(PowershellStreams.Error))
 		{
-			var errorOutput = new PSDataCollection<ErrorRecord>();
+			PSDataCollection<ErrorRecord> errorOutput = [];
 			errorOutput.DataAdded += (s, e) =>
 			{
 				if (s is PSDataCollection<ErrorRecord> data)
 				{
-					var newRecord = data[e.Index];
+					ErrorRecord newRecord = data[e.Index];
 					collectedOutput.Add(newRecord.ToString());
 				}
 			};
@@ -76,12 +76,12 @@ internal static class PowershellExtensions
 
 		if (streams.HasFlag(PowershellStreams.Warning))
 		{
-			var warningOutput = new PSDataCollection<WarningRecord>();
+			PSDataCollection<WarningRecord> warningOutput = [];
 			warningOutput.DataAdded += (s, e) =>
 			{
 				if (s is PSDataCollection<WarningRecord> data)
 				{
-					var newRecord = data[e.Index];
+					WarningRecord newRecord = data[e.Index];
 					collectedOutput.Add(newRecord.Message);
 				}
 			};
@@ -90,13 +90,13 @@ internal static class PowershellExtensions
 
 		if (streams.HasFlag(PowershellStreams.Information))
 		{
-			var informationOutput = new PSDataCollection<InformationRecord>();
+			PSDataCollection<InformationRecord> informationOutput = [];
 			informationOutput.DataAdded += (s, e) =>
 			{
 				if (s is PSDataCollection<InformationRecord> data)
 				{
-					var newRecord = data[e.Index];
-					var dataString = newRecord.MessageData?.ToString();
+					InformationRecord newRecord = data[e.Index];
+					string? dataString = newRecord.MessageData?.ToString();
 					if (dataString is not null)
 					{
 						collectedOutput.Add(dataString);
@@ -108,12 +108,12 @@ internal static class PowershellExtensions
 
 		if (streams.HasFlag(PowershellStreams.Progress))
 		{
-			var progressOutput = new PSDataCollection<ProgressRecord>();
+			PSDataCollection<ProgressRecord> progressOutput = [];
 			progressOutput.DataAdded += (s, e) =>
 			{
 				if (s is PSDataCollection<ProgressRecord> data)
 				{
-					var newRecord = data[e.Index];
+					ProgressRecord newRecord = data[e.Index];
 					collectedOutput.Add(newRecord.StatusDescription);
 				}
 			};
@@ -122,12 +122,12 @@ internal static class PowershellExtensions
 
 		if (streams.HasFlag(PowershellStreams.Debug))
 		{
-			var debugOutput = new PSDataCollection<DebugRecord>();
+			PSDataCollection<DebugRecord> debugOutput = [];
 			debugOutput.DataAdded += (s, e) =>
 			{
 				if (s is PSDataCollection<DebugRecord> data)
 				{
-					var newRecord = data[e.Index];
+					DebugRecord newRecord = data[e.Index];
 					collectedOutput.Add(newRecord.Message);
 				}
 			};

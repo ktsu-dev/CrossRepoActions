@@ -8,8 +8,8 @@ using CommandLine;
 
 using DustInTheWind.ConsoleTools.Controls.Menus;
 
-using ktsu.Extensions;
-using ktsu.StrongPaths;
+using ktsu.Semantics.Paths;
+using ktsu.Semantics.Strings;
 
 internal abstract class BaseVerb : ICommand
 {

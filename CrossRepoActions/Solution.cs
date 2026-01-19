@@ -6,7 +6,7 @@ namespace ktsu.CrossRepoActions;
 
 using System.Collections.ObjectModel;
 
-using ktsu.StrongPaths;
+using ktsu.Semantics.Paths;
 
 /// <summary>
 /// Represents a solution containing projects, packages, and dependencies.

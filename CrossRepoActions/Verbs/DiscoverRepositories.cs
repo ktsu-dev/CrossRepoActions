@@ -7,7 +7,7 @@ namespace ktsu.CrossRepoActions.Verbs;
 using CommandLine;
 
 [Verb("DiscoverRepositories")]
-internal class DiscoverRepositories : BaseVerb<DiscoverRepositories>
+internal sealed class DiscoverRepositories : BaseVerb<DiscoverRepositories>
 {
 	internal override void Run(DiscoverRepositories options)
 	{

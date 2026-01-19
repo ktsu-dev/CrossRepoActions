@@ -5,14 +5,16 @@
 namespace ktsu.CrossRepoActions.Verbs;
 
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
 using CommandLine;
 
 using ktsu.Extensions;
+using ktsu.Semantics.Paths;
 
 [Verb("UpdatePackages")]
-internal class UpdatePackages : BaseVerb<UpdatePackages>
+internal sealed class UpdatePackages : BaseVerb<UpdatePackages>
 {
 	private static object ConsoleLock { get; } = new();
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Printing unhandled exceptions")]
@@ -20,8 +22,8 @@ internal class UpdatePackages : BaseVerb<UpdatePackages>
 	{
 		while (true)
 		{
-			var errorSummary = new ConcurrentBag<string>();
-			var solutions = Dotnet.DiscoverSolutions(options.Path);
+			ConcurrentBag<string> errorSummary = [];
+			Collection<Solution> solutions = Dotnet.DiscoverSolutions(options.Path);
 
 			_ = Parallel.ForEach(solutions, new()
 			{
@@ -31,35 +33,35 @@ internal class UpdatePackages : BaseVerb<UpdatePackages>
 			{
 				try
 				{
-					foreach (var project in solution.Projects)
+					foreach (AbsoluteFilePath project in solution.Projects)
 					{
-						var solutionDir = solution.Path.DirectoryPath;
-						var isProjectFileModified = Git.Status(solutionDir, project).Any();
-						var canCommit = !isProjectFileModified;
-						var outdatedPackages = Dotnet.GetOutdatedProjectDependencies(project);
-						var results = Dotnet.UpdatePackages(project, outdatedPackages);
-						var upToDate = new Collection<Package>();
-						var updated = new Collection<Package>();
-						var errored = new Collection<Package>();
-						var errorLines = new Collection<string>();
-						foreach (var package in outdatedPackages)
+						AbsoluteDirectoryPath solutionDir = solution.Path.DirectoryPath.AsAbsolute();
+						bool isProjectFileModified = Git.Status(solutionDir, project).Any();
+						bool canCommit = !isProjectFileModified;
+						Collection<Package> outdatedPackages = Dotnet.GetOutdatedProjectDependencies(project);
+						Collection<string> results = Dotnet.UpdatePackages(project, outdatedPackages);
+						Collection<Package> upToDate = [];
+						Collection<Package> updated = [];
+						Collection<Package> errored = [];
+						Collection<string> errorLines = [];
+						foreach (Package package in outdatedPackages)
 						{
-							var packageErrors = results.Where(s => s.Contains($"{package.Name}") && s.Contains("error", StringComparison.InvariantCultureIgnoreCase) && !s.Contains("imported file", StringComparison.InvariantCultureIgnoreCase));
+							IEnumerable<string> packageErrors = results.Where(s => s.Contains($"{package.Name}") && s.Contains("error", StringComparison.InvariantCultureIgnoreCase) && !s.Contains("imported file", StringComparison.InvariantCultureIgnoreCase));
 							if (packageErrors.Any())
 							{
-								errorLines.AddMany(packageErrors);
+								errorLines.AddFrom(packageErrors);
 								errored.Add(package);
 								continue;
 							}
 
-							var isUpToDate = results.Any(s => s.Contains($"'{package.Name}' version '{package.Version}' updated", StringComparison.InvariantCultureIgnoreCase));
+							bool isUpToDate = results.Any(s => s.Contains($"'{package.Name}' version '{package.Version}' updated", StringComparison.InvariantCultureIgnoreCase));
 							if (isUpToDate)
 							{
 								upToDate.Add(package);
 								continue;
 							}
 
-							var wasUpdated = results.Any(s => s.Contains($"'{package.Name}' version", StringComparison.InvariantCultureIgnoreCase) && s.Contains("updated in file", StringComparison.InvariantCultureIgnoreCase) && !s.Contains($"version '{package.Version}'", StringComparison.InvariantCultureIgnoreCase));
+							bool wasUpdated = results.Any(s => s.Contains($"'{package.Name}' version", StringComparison.InvariantCultureIgnoreCase) && s.Contains("updated in file", StringComparison.InvariantCultureIgnoreCase) && !s.Contains($"version '{package.Version}'", StringComparison.InvariantCultureIgnoreCase));
 							if (wasUpdated)
 							{
 								updated.Add(package);
@@ -67,10 +69,10 @@ internal class UpdatePackages : BaseVerb<UpdatePackages>
 							}
 						}
 
-						var projectStatus = $"✅ {project.FileName}";
+						string projectStatus = $"✅ {project.FileName}";
 						if (errored.Count != 0)
 						{
-							var error = $"❌ {project.FileName}";
+							string error = $"❌ {project.FileName}";
 							errorSummary.Add(error);
 							projectStatus = error;
 						}

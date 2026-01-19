@@ -7,9 +7,9 @@ namespace ktsu.CrossRepoActions;
 using System.Collections.ObjectModel;
 
 using ktsu.AppDataStorage;
-using ktsu.StrongPaths;
+using ktsu.Semantics.Paths;
 
-internal class PersistentState : AppData<PersistentState>
+internal sealed class PersistentState : AppData<PersistentState>
 {
 	public Collection<AbsoluteDirectoryPath> CachedRepos { get; set; } = [];
 	public Collection<Solution> CachedSolutions { get; set; } = [];

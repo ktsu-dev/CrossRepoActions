@@ -5,30 +5,31 @@
 namespace ktsu.CrossRepoActions.Verbs;
 
 using System.Collections.Concurrent;
-
+using System.Collections.Generic;
 using CommandLine;
 
 using ktsu.Extensions;
+using ktsu.Semantics.Paths;
 
 [Verb("GitPull")]
-internal class GitPull : BaseVerb<GitPull>
+internal sealed class GitPull : BaseVerb<GitPull>
 {
 	internal override void Run(GitPull options)
 	{
-		var errorSummary = new ConcurrentBag<string>();
-		var repos = Git.DiscoverRepositories(options.Path);
+		ConcurrentBag<string> errorSummary = [];
+		IEnumerable<AbsoluteDirectoryPath> repos = Git.DiscoverRepositories(options.Path);
 		_ = Parallel.ForEach(repos, new()
 		{
 			MaxDegreeOfParallelism = Program.MaxParallelism,
 		},
 		repo =>
 		{
-			var output = Git.Pull(repo);
+			IEnumerable<string> output = Git.Pull(repo);
 			//output.WriteItemsToConsole();
 
 			if (output.Any(s => s.Contains("error")))
 			{
-				var error = $"❌ {System.IO.Path.GetFileName(repo)}";
+				string error = $"❌ {System.IO.Path.GetFileName(repo)}";
 				errorSummary.Add(error);
 				Console.WriteLine(error);
 			}

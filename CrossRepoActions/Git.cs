@@ -5,17 +5,19 @@
 namespace ktsu.CrossRepoActions;
 
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Management.Automation;
 
 using ktsu.Extensions;
-using ktsu.StrongPaths;
+using ktsu.Semantics.Paths;
+using ktsu.Semantics.Strings;
 
 internal static class Git
 {
 	internal static IEnumerable<AbsoluteDirectoryPath> DiscoverRepositories(AbsoluteDirectoryPath root)
 	{
-		var persistentState = PersistentState.Get();
+		PersistentState persistentState = PersistentState.Get();
 		if (persistentState.CachedRepos.Count > 0)
 		{
 			return persistentState.CachedRepos;
@@ -34,8 +36,8 @@ internal static class Git
 
 	internal static IEnumerable<string> Pull(AbsoluteDirectoryPath repo)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("git")
 			.AddArgument("-C")
 			.AddArgument(repo.ToString())
@@ -49,8 +51,8 @@ internal static class Git
 
 	internal static IEnumerable<string> Push(AbsoluteDirectoryPath repo)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("git")
 			.AddArgument("-C")
 			.AddArgument(repo.ToString())
@@ -63,8 +65,8 @@ internal static class Git
 
 	internal static IEnumerable<string> Status(AbsoluteDirectoryPath repo, AbsoluteFilePath filePath)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("git")
 			.AddArgument("-C")
 			.AddArgument(repo.ToString())
@@ -79,8 +81,8 @@ internal static class Git
 
 	internal static IEnumerable<string> Unstage(AbsoluteDirectoryPath repo)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("git")
 			.AddArgument("-C")
 			.AddArgument(repo.ToString())
@@ -94,8 +96,8 @@ internal static class Git
 
 	internal static IEnumerable<string> Add(AbsoluteDirectoryPath repo, AbsoluteFilePath filePath)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("git")
 			.AddArgument("-C")
 			.AddArgument(repo.ToString())
@@ -108,8 +110,8 @@ internal static class Git
 
 	internal static IEnumerable<string> Commit(AbsoluteDirectoryPath repo, string message)
 	{
-		using var ps = PowerShell.Create();
-		var results = ps
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
 			.AddCommand("git")
 			.AddArgument("-C")
 			.AddArgument(repo.ToString())
@@ -118,5 +120,65 @@ internal static class Git
 			.InvokeAndReturnOutput(PowershellStreams.All);
 
 		return results;
+	}
+
+	internal static string GetCurrentBranch(AbsoluteDirectoryPath repo)
+	{
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
+			.AddCommand("git")
+			.AddArgument("-C")
+			.AddArgument(repo.ToString())
+			.AddArgument("rev-parse")
+			.AddArgument("--abbrev-ref")
+			.AddArgument("HEAD")
+			.InvokeAndReturnOutput(PowershellStreams.All);
+
+		return results.FirstOrDefault() ?? "unknown";
+	}
+
+	internal static string GetStatusSummary(AbsoluteDirectoryPath repo)
+	{
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
+			.AddCommand("git")
+			.AddArgument("-C")
+			.AddArgument(repo.ToString())
+			.AddArgument("status")
+			.AddArgument("--porcelain")
+			.InvokeAndReturnOutput(PowershellStreams.All);
+
+		if (results.Count == 0)
+		{
+			return "clean";
+		}
+
+		int modified = results.Count(s => s.StartsWith(" M") || s.StartsWith("M "));
+		int added = results.Count(s => s.StartsWith("A ") || s.StartsWith("??"));
+		int deleted = results.Count(s => s.StartsWith(" D") || s.StartsWith("D "));
+		int renamed = results.Count(s => s.StartsWith("R "));
+
+		List<string> parts = [];
+		if (modified > 0)
+		{
+			parts.Add($"{modified}M");
+		}
+
+		if (added > 0)
+		{
+			parts.Add($"{added}A");
+		}
+
+		if (deleted > 0)
+		{
+			parts.Add($"{deleted}D");
+		}
+
+		if (renamed > 0)
+		{
+			parts.Add($"{renamed}R");
+		}
+
+		return parts.Count > 0 ? string.Join(" ", parts) : "modified";
 	}
 }

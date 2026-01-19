@@ -10,10 +10,10 @@ using CommandLine;
 
 using ktsu.CrossRepoActions;
 using ktsu.Extensions;
-using ktsu.StrongPaths;
+using ktsu.Semantics.Paths;
 
 [Verb("BuildAndTest")]
-internal class BuildAndTest : BaseVerb<BuildAndTest>
+internal sealed class BuildAndTest : BaseVerb<BuildAndTest>
 {
 	private enum Status
 	{
@@ -24,24 +24,24 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 
 	internal override void Run(BuildAndTest options)
 	{
-		var solutions = Dotnet.DiscoverSolutions(options.Path);
-		var errorSummary = new Collection<string>();
+		Collection<Solution> solutions = Dotnet.DiscoverSolutions(options.Path);
+		Collection<string> errorSummary = [];
 
-		foreach (var solution in solutions)
+		foreach (Solution solution in solutions)
 		{
-			var cwd = Directory.GetCurrentDirectory();
+			string cwd = Directory.GetCurrentDirectory();
 			Directory.SetCurrentDirectory(solution.Path.DirectoryPath);
 
 			OutputBuildStatus(solution.Path, Status.InProgress, 0);
 
-			var solutionErrors = new Collection<string>();
-			var projectStatuses = new Collection<string>();
-			var projectErrors = new Collection<string>();
+			Collection<string> solutionErrors = [];
+			Collection<string> projectStatuses = [];
+			Collection<string> projectErrors = [];
 
-			foreach (var project in solution.Projects)
+			foreach (AbsoluteFilePath project in solution.Projects)
 			{
-				var results = Dotnet.BuildProject(project);
-				solutionErrors.AddMany(results);
+				Collection<string> results = Dotnet.BuildProject(project);
+				solutionErrors.AddFrom(results);
 				if (results.Count != 0)
 				{
 					projectStatuses.Add($"\t❌ {project.FileName}");
@@ -58,13 +58,13 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 				OutputBuildStatus(solution.Path, Status.Error, 0);
 				projectStatuses.WriteItemsToConsole();
 				errorSummary.Add($"❌ {solution.Name}");
-				errorSummary.AddMany(projectErrors);
+				errorSummary.AddFrom(projectErrors);
 				solutionErrors.WriteItemsToConsole();
 				continue;
 			}
 
-			var tests = Dotnet.GetTests();
-			var numTests = tests.Count;
+			Collection<string> tests = Dotnet.GetTests();
+			int numTests = tests.Count;
 			OutputBuildStatus(solution.Path, Status.Success, numTests);
 			projectStatuses.WriteItemsToConsole();
 
@@ -73,16 +73,16 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 				continue;
 			}
 
-			var testOutput = Dotnet.RunTests();
+			Collection<string> testOutput = Dotnet.RunTests();
 			testOutput = testOutput
 				.Where(l => l.EndsWithOrdinal("]") && (l.Contains("Passed") || l.Contains("Failed")))
 				.Select(s =>
 				{
-					var parts = s.Split(' ');
-					var statusString = parts[0];
-					var testName = parts[1];
-					var timeString = parts[2];
-					var status = statusString switch
+					string[] parts = s.Split(' ');
+					string statusString = parts[0];
+					string testName = parts[1];
+					string timeString = parts[2];
+					Status status = statusString switch
 					{
 						"Passed" => Status.Success,
 						"Failed" => Status.Error,
@@ -100,7 +100,7 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 				Console.WriteLine(s);
 				if (s.Contains(GetTestStatusIndicator(Status.Error)))
 				{
-					var parts = s.Split(' ');
+					string[] parts = s.Split(' ');
 					errorSummary.Add($"{parts[0]} {solution.Name}.{parts[1]}");
 				}
 			});
@@ -138,7 +138,7 @@ internal class BuildAndTest : BaseVerb<BuildAndTest>
 
 	private static void OutputBuildStatus(AbsoluteFilePath solutionFilePath, Status status, int numTests)
 	{
-		var test = numTests > 0 ? $" ({numTests} tests found)" : "";
+		string test = numTests > 0 ? $" ({numTests} tests found)" : "";
 		Console.Write($"\r {GetBuildStatusIndicator(status)} {System.IO.Path.GetFileName(solutionFilePath)}{test}{GetLineEnding(status)}");
 	}
 }
