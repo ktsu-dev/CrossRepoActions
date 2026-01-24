@@ -1,10 +1,8 @@
-## v1.2.5-pre.1 (prerelease)
+## v1.2.5 (patch)
 
 Changes since v1.2.4:
 
-- Bump the ktsu group with 1 update ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump the ktsu group with 3 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump MSTest.Sdk from 3.10.2 to 4.0.2 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Update project SDK version and package references ([@matt-edmondson](https://github.com/matt-edmondson))
 ## v1.2.4 (patch)
 
 Changes since v1.2.3:
