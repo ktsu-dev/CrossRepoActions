@@ -1,6 +1,9 @@
-## v1.2.5
+## v1.2.6-pre.1 (prerelease)
 
-No significant changes detected since v1.2.5.
+Changes since v1.2.5:
+
+- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
 ## v1.2.5 (patch)
 
 Changes since v1.2.4:
