@@ -1,5 +1,3 @@
-## v1.2.5 (patch)
+## v1.2.5
 
-Changes since v1.2.4:
-
-- Update project SDK version and package references ([@matt-edmondson](https://github.com/matt-edmondson))
+No significant changes detected since v1.2.5.
