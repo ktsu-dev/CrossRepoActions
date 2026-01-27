@@ -1,3 +1,6 @@
+## v1.2.6
+
+No significant changes detected since v1.2.6.
 ## v1.2.6 (patch)
 
 Changes since v1.2.5:
@@ -12,10 +15,7 @@ Changes since v1.2.6-pre.1:
 - Bump the ktsu group with 1 update ([@dependabot[bot]](https://github.com/dependabot[bot]))
 ## v1.2.6-pre.1 (prerelease)
 
-Changes since v1.2.5:
-
-- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
+Incremental prerelease update.
 ## v1.2.5 (patch)
 
 Changes since v1.2.4:
