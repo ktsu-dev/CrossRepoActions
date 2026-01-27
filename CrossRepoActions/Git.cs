@@ -43,6 +43,7 @@ internal static class Git
 			.AddArgument(repo.ToString())
 			.AddArgument("pull")
 			.AddArgument("--all")
+			.AddArgument("--autostash")
 			.AddArgument("-v")
 			.InvokeAndReturnOutput(PowershellStreams.All);
 
