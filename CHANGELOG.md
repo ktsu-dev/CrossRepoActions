@@ -1,3 +1,8 @@
+## v1.2.8-pre.1 (prerelease)
+
+Changes since v1.2.7:
+
+- Bump the ktsu group with 6 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 ## v1.2.7 (patch)
 
 Changes since v1.2.6:
@@ -11,13 +16,7 @@ Changes since v1.2.7-pre.1:
 - Bump Polyfill from 9.7.6 to 9.7.7 ([@dependabot[bot]](https://github.com/dependabot[bot]))
 ## v1.2.7-pre.1 (prerelease)
 
-Changes since v1.2.6:
-
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitignore ([@ktsu[bot]](https://github.com/ktsu[bot]))
+Incremental prerelease update.
 ## v1.2.6 (patch)
 
 Changes since v1.2.5:
