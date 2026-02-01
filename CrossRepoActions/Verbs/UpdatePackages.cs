@@ -20,7 +20,11 @@ internal sealed class UpdatePackages : BaseVerb<UpdatePackages>
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Printing unhandled exceptions")]
 	internal override void Run(UpdatePackages options)
 	{
-		while (true)
+		Console.WriteLine("Press 'q' or Escape to stop after the current iteration...");
+		Console.WriteLine();
+
+		bool shouldContinue = true;
+		while (shouldContinue)
 		{
 			ConcurrentBag<string> errorSummary = [];
 			Collection<Solution> solutions = Dotnet.DiscoverSolutions(options.Path);
@@ -113,7 +117,27 @@ internal sealed class UpdatePackages : BaseVerb<UpdatePackages>
 				errorSummary.WriteItemsToConsole();
 			}
 
-			Thread.Sleep(1000 * 60 * 5);
+			Console.WriteLine();
+			Console.WriteLine("Waiting 5 minutes before next iteration. Press 'q' or Escape to exit...");
+
+			// Check for exit key during the wait period
+			DateTime waitUntil = DateTime.UtcNow.AddMinutes(5);
+			while (DateTime.UtcNow < waitUntil)
+			{
+				if (Console.KeyAvailable)
+				{
+					ConsoleKeyInfo key = Console.ReadKey(intercept: true);
+					if (key.Key is ConsoleKey.Q or ConsoleKey.Escape)
+					{
+						shouldContinue = false;
+						Console.WriteLine();
+						Console.WriteLine("Exiting...");
+						break;
+					}
+				}
+
+				Thread.Sleep(100); // Check every 100ms to be responsive
+			}
 		}
 	}
 }
