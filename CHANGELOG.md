@@ -1,3 +1,6 @@
+## v1.2.8
+
+No significant changes detected since v1.2.8.
 ## v1.2.8 (patch)
 
 Changes since v1.2.7:
@@ -25,9 +28,7 @@ Changes since v1.2.8-pre.1:
 - Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
 ## v1.2.8-pre.1 (prerelease)
 
-Changes since v1.2.7:
-
-- Bump the ktsu group with 6 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+Incremental prerelease update.
 ## v1.2.7 (patch)
 
 Changes since v1.2.6:
