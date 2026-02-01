@@ -1,10 +1,8 @@
-## v1.2.8-pre.4 (prerelease)
+## v1.2.8 (patch)
 
-Changes since v1.2.8-pre.3:
+Changes since v1.2.7:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync COPYRIGHT.md ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Refactor UpdatePackages to allow user interruption and improve iteration control ([@matt-edmondson](https://github.com/matt-edmondson))
 ## v1.2.8-pre.4 (prerelease)
 
 Changes since v1.2.8-pre.3:
