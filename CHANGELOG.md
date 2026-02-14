@@ -1,3 +1,9 @@
+## v1.2.10 (patch)
+
+Changes since v1.2.9:
+
+- Remove legacy build scripts ([@matt-edmondson](https://github.com/matt-edmondson))
+
 ## v1.2.9 (patch)
 
 Changes since v1.2.8:
@@ -63,12 +69,7 @@ Changes since v1.2.9-pre.1:
 
 ## v1.2.9-pre.1 (prerelease)
 
-Changes since v1.2.8:
-
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Bump Polyfill from 9.7.7 to 9.8.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump the ktsu group with 2 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+No significant changes detected since v1.2.9.
 
 ## v1.2.8 (patch)
 
