@@ -1,3 +1,53 @@
+## v1.2.27 (patch)
+
+Changes since v1.2.26:
+
+- Bump MSTest.Sdk from 4.1.0 to 4.2.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 1 update ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+## v1.2.26 (patch)
+
+Changes since v1.2.25:
+
+- Bump Polyfill from 9.24.0 to 10.0.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 1 update ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+## v1.2.25 (patch)
+
+Changes since v1.2.24:
+
+- Bump Polyfill from 9.23.0 to 9.24.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+## v1.2.24 (patch)
+
+Changes since v1.2.23:
+
+- Bump Polyfill from 9.22.0 to 9.23.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the microsoft group with 1 update ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 9.18.0 to 9.22.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the microsoft group with 3 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the microsoft group with 2 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+## v1.2.23 (patch)
+
+Changes since v1.2.22:
+
+- Bump Polyfill from 9.17.0 to 9.18.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+## v1.2.22 (patch)
+
+Changes since v1.2.21:
+
+- Bump Polyfill from 9.15.0 to 9.17.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 1 update ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+## v1.2.21 (patch)
+
+Changes since v1.2.20:
+
+- Bump the ktsu group with 1 update ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 9.13.0 to 9.15.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
 ## v1.2.20 (patch)
 
 Changes since v1.2.19:
