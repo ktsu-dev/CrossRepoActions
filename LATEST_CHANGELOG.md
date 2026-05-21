@@ -1,6 +1,6 @@
-## v1.2.46 (patch)
+## v1.2.47 (patch)
 
-Changes since v1.2.45:
+Changes since v1.2.46:
 
-- Bump the ktsu group with 1 update ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the microsoft group with 1 update ([@dependabot[bot]](https://github.com/dependabot[bot]))
 
