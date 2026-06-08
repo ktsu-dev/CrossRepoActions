@@ -1,7 +1,9 @@
-## v1.2.52
+## v1.2.53 (patch)
 
 Changes since v1.2.52:
 
+- Bump Polyfill from 10.8.0 to 10.8.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 3 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 
 ## v1.2.52 (patch)
 
