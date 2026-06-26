@@ -13,14 +13,21 @@
   <ItemGroup>
     <PackageReference Include="CommandLineParser" />
     <PackageReference Include="ConsoleTools" />
+    <PackageReference Include="ConsoleTools.Controls" />
+    <PackageReference Include="ConsoleTools.Controls.Menus" />
+    <PackageReference Include="ConsoleTools.Controls.Spinners" />
+    <PackageReference Include="ConsoleTools.Core" />
     <PackageReference Include="ktsu.AppDataStorage" />
     <PackageReference Include="ktsu.Extensions" />
     <PackageReference Include="ktsu.RunCommand" />
+    <PackageReference Include="ktsu.Semantics.Paths" />
+    <PackageReference Include="ktsu.Semantics.Strings" />
     <PackageReference Include="Microsoft.PowerShell.SDK" />
     <PackageReference Include="Microsoft.SourceLink.AzureRepos.Git" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
     <PackageReference Include="NuGet.Versioning" />
     <PackageReference Include="Polyfill" />
+    <PackageReference Include="System.Management.Automation" />
   </ItemGroup>
 
 </Project>
