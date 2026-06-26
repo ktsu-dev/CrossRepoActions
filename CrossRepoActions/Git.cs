@@ -50,6 +50,36 @@ internal static class Git
 		return results;
 	}
 
+	internal static IEnumerable<string> Fetch(AbsoluteDirectoryPath repo)
+	{
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
+			.AddCommand("git")
+			.AddArgument("-C")
+			.AddArgument(repo.ToString())
+			.AddArgument("fetch")
+			.AddArgument("--all")
+			.AddArgument("-v")
+			.InvokeAndReturnOutput(PowershellStreams.All);
+
+		return results;
+	}
+
+	internal static IEnumerable<string> InstallLfs(AbsoluteDirectoryPath repo)
+	{
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
+			.AddCommand("git")
+			.AddArgument("-C")
+			.AddArgument(repo.ToString())
+			.AddArgument("lfs")
+			.AddArgument("install")
+			.AddArgument("--local")
+			.InvokeAndReturnOutput(PowershellStreams.All);
+
+		return results;
+	}
+
 	internal static IEnumerable<string> Push(AbsoluteDirectoryPath repo)
 	{
 		using PowerShell ps = PowerShell.Create();
