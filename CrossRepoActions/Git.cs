@@ -212,4 +212,110 @@ internal static class Git
 
 		return parts.Count > 0 ? string.Join(" ", parts) : "modified";
 	}
+
+	/// <summary>
+	/// Gets the upstream (tracking) branch for the current branch, e.g. "origin/main".
+	/// Returns <see langword="null"/> if the current branch has no configured upstream.
+	/// </summary>
+	internal static string? GetUpstreamBranch(AbsoluteDirectoryPath repo)
+	{
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
+			.AddCommand("git")
+			.AddArgument("-C")
+			.AddArgument(repo.ToString())
+			.AddArgument("rev-parse")
+			.AddArgument("--abbrev-ref")
+			.AddArgument("--symbolic-full-name")
+			.AddArgument("@{upstream}")
+			.InvokeAndReturnOutput(PowershellStreams.All);
+
+		string? result = results.FirstOrDefault()?.Trim();
+		return string.IsNullOrWhiteSpace(result)
+			|| result.Contains("fatal", StringComparison.OrdinalIgnoreCase)
+			|| result.Contains("error", StringComparison.OrdinalIgnoreCase)
+			? null
+			: result;
+	}
+
+	/// <summary>
+	/// Gets the repository's default branch name ("main" or "master"), preferring "main",
+	/// based on which remote-tracking branch exists under "origin".
+	/// Returns <see langword="null"/> if neither <c>origin/main</c> nor <c>origin/master</c> exists.
+	/// </summary>
+	internal static string? GetDefaultBranch(AbsoluteDirectoryPath repo)
+	{
+		foreach (string candidate in (string[])["main", "master"])
+		{
+			if (RefExists(repo, $"refs/remotes/origin/{candidate}"))
+			{
+				return candidate;
+			}
+		}
+
+		return null;
+	}
+
+	/// <summary>
+	/// Determines whether the given fully-qualified ref exists in the repository.
+	/// </summary>
+	internal static bool RefExists(AbsoluteDirectoryPath repo, string reference)
+	{
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
+			.AddCommand("git")
+			.AddArgument("-C")
+			.AddArgument(repo.ToString())
+			.AddArgument("rev-parse")
+			.AddArgument("--verify")
+			.AddArgument("--quiet")
+			.AddArgument(reference)
+			.InvokeAndReturnOutput(PowershellStreams.All);
+
+		return results.Any(s => !string.IsNullOrWhiteSpace(s)
+			&& !s.Contains("fatal", StringComparison.OrdinalIgnoreCase));
+	}
+
+	/// <summary>
+	/// Counts how many commits <paramref name="headRef"/> is ahead and behind
+	/// <paramref name="baseRef"/>. Returns <see langword="null"/> if either ref cannot be resolved.
+	/// </summary>
+	internal static (int Ahead, int Behind)? GetAheadBehind(AbsoluteDirectoryPath repo, string baseRef, string headRef)
+	{
+		using PowerShell ps = PowerShell.Create();
+		Collection<string> results = ps
+			.AddCommand("git")
+			.AddArgument("-C")
+			.AddArgument(repo.ToString())
+			.AddArgument("rev-list")
+			.AddArgument("--left-right")
+			.AddArgument("--count")
+			.AddArgument($"{baseRef}...{headRef}")
+			.InvokeAndReturnOutput(PowershellStreams.All);
+
+		string? line = results.FirstOrDefault()?.Trim();
+		if (string.IsNullOrWhiteSpace(line))
+		{
+			return null;
+		}
+
+		// --left-right --count base...head prints "<behind>\t<ahead>":
+		// left = commits reachable from base but not head, right = the reverse.
+		string[] parts = line.Split(['\t', ' '], StringSplitOptions.RemoveEmptyEntries);
+		return parts.Length == 2
+			&& int.TryParse(parts[0], out int behind)
+			&& int.TryParse(parts[1], out int ahead)
+			? (ahead, behind)
+			: null;
+	}
+
+	/// <summary>
+	/// Gets how far the current branch is ahead/behind its upstream tracking branch.
+	/// Returns <see langword="null"/> if there is no upstream configured.
+	/// </summary>
+	internal static (int Ahead, int Behind)? GetUpstreamAheadBehind(AbsoluteDirectoryPath repo)
+	{
+		string? upstream = GetUpstreamBranch(repo);
+		return upstream is null ? null : GetAheadBehind(repo, upstream, "HEAD");
+	}
 }
