@@ -1,6 +1,6 @@
-## v1.3.1 (patch)
+## v1.4.0 (minor)
 
 Changes since v1.3.0:
 
-- Bump the ktsu group with 2 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- [minor] Add fetch and ahead/behind status to ListRepositories ([@matt-edmondson](https://github.com/matt-edmondson))
 
