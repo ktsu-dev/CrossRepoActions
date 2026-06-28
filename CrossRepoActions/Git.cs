@@ -319,6 +319,11 @@ internal static class Git
 		return upstream is null ? null : GetAheadBehind(repo, upstream, "HEAD");
 	}
 
+	/// <summary>
+	/// Determines whether the repository has any untracked (and non-gitignored) files.
+	/// </summary>
+	internal static bool HasUntrackedFiles(AbsoluteDirectoryPath repo) => GetUntrackedFiles(repo).Count > 0;
+
 	private static IReadOnlyList<string> GetUntrackedFiles(AbsoluteDirectoryPath repo)
 	{
 		using PowerShell ps = PowerShell.Create();

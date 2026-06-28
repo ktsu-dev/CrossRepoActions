@@ -67,7 +67,7 @@ The application uses a **verb-based command architecture** powered by CommandLin
   - `CommitMessageGenerator`: Pure prompt-building + response-cleaning over `ILlmService` (unit-tested)
   - `LlmSettings`: Persisted OpenAI settings (ApiKey, Model, OrganizationId, MaxDiffChars)
 - **PersistentState.cs**: App data storage for caching discovered repos/solutions and `LlmSettings` (uses ktsu.AppDataStorage)
-- **Git.cs**: Git operations wrapper using PowerShell automation (incl. diff/stage/difftool helpers)
+- **Git.cs**: Git operations wrapper using PowerShell automation (incl. full-diff/stage/untracked helpers)
 - **Dotnet.cs**: .NET CLI operations wrapper using PowerShell automation
 - **Solution.cs**: Data model representing a solution with projects, packages, and dependencies
 - **PowershellExtensions.cs**: Extension methods for PowerShell invocation

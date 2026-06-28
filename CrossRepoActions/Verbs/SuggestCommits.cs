@@ -29,6 +29,10 @@ internal sealed class SuggestCommits : BaseVerb<SuggestCommits>
 		IReadOnlyList<string> OmittedFiles,
 		string? Error);
 
+	private sealed record PendingAction(Suggestion Suggestion, string Message, bool Push);
+
+	private sealed record ActionOutcome(PendingAction Action, bool Success, string Summary);
+
 	private sealed class ReviewState
 	{
 		internal ReviewState(Suggestion suggestion) => ApplyFresh(suggestion);
@@ -71,8 +75,33 @@ internal sealed class SuggestCommits : BaseVerb<SuggestCommits>
 			return;
 		}
 
-		FetchAll(dirty);
-		List<AbsoluteDirectoryPath> toProcess = PromptPullWhereBehind(dirty);
+		// Skip repos with untracked files: git diff HEAD does not include new files, so the model
+		// would never see their content, yet `git add -A` would commit them. Only process repos
+		// whose changes are entirely tracked.
+		List<AbsoluteDirectoryPath> trackedOnly = [];
+		List<AbsoluteDirectoryPath> withUntracked = [];
+		foreach (AbsoluteDirectoryPath repo in dirty)
+		{
+			(Git.HasUntrackedFiles(repo) ? withUntracked : trackedOnly).Add(repo);
+		}
+
+		if (withUntracked.Count > 0)
+		{
+			Console.WriteLine($"Skipping {withUntracked.Count} repo(s) with untracked files (commit, stash, or ignore the new files first):");
+			foreach (AbsoluteDirectoryPath repo in withUntracked.OrderBy(r => r.ToString(), StringComparer.OrdinalIgnoreCase))
+			{
+				Console.WriteLine($"  - {System.IO.Path.GetFileName(repo.ToString())}");
+			}
+		}
+
+		if (trackedOnly.Count == 0)
+		{
+			Console.WriteLine("No repositories with only tracked changes to process.");
+			return;
+		}
+
+		FetchAll(trackedOnly);
+		List<AbsoluteDirectoryPath> toProcess = PromptPullWhereBehind(trackedOnly);
 		List<Suggestion> suggestions = GenerateAll(toProcess, generator, settings);
 		Review(suggestions, generator, settings);
 	}
@@ -168,13 +197,46 @@ internal sealed class SuggestCommits : BaseVerb<SuggestCommits>
 	{
 		List<Suggestion> ordered = [.. suggestions.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)];
 		int total = ordered.Count;
+
+		// First pass: review each repo serially, but run the chosen commit/push in the background
+		// so the user can move straight on to the next repo without waiting on the network.
+		List<Task<ActionOutcome>> tasks = [];
 		for (int i = 0; i < total; i++)
 		{
-			ReviewOne(ordered[i], i + 1, total, generator, settings);
+			PendingAction? action = ReviewOne(ordered[i], i + 1, total, generator, settings, defer: true);
+			if (action is not null)
+			{
+				tasks.Add(Task.Run(() => ExecuteInBackground(action)));
+			}
+		}
+
+		if (tasks.Count == 0)
+		{
+			return;
+		}
+
+		Console.WriteLine();
+		Console.WriteLine($"Waiting for {tasks.Count} background action(s) to finish…");
+		Task.WaitAll([.. tasks]);
+		List<ActionOutcome> outcomes = [.. tasks.Select(t => t.Result)];
+
+		ReportOutcomes(outcomes);
+
+		List<ActionOutcome> failed = [.. outcomes.Where(o => !o.Success)];
+		if (failed.Count > 0)
+		{
+			RetryFailures(failed, generator, settings);
 		}
 	}
 
-	private static void ReviewOne(Suggestion suggestion, int index, int total, CommitMessageGenerator generator, LlmSettings settings)
+	/// <summary>
+	/// Reviews one suggestion. When <paramref name="defer"/> is <see langword="true"/>, a
+	/// chosen commit/push is returned as a <see cref="PendingAction"/> for the caller to run in
+	/// the background; when <see langword="false"/> (the retry pass) it is executed inline via the
+	/// interactive <see cref="CommitRepo"/>. Returns the queued action, or <see langword="null"/>
+	/// if the repo was skipped or already handled inline.
+	/// </summary>
+	private static PendingAction? ReviewOne(Suggestion suggestion, int index, int total, CommitMessageGenerator generator, LlmSettings settings, bool defer, string? initialMessage = null)
 	{
 		Console.WriteLine();
 		Console.WriteLine($"[{index}/{total}] {suggestion.Name}");
@@ -182,7 +244,7 @@ internal sealed class SuggestCommits : BaseVerb<SuggestCommits>
 		if (suggestion.Error is not null)
 		{
 			Console.WriteLine($"  generation failed: {suggestion.Error}");
-			return;
+			return null;
 		}
 
 		string branch = Git.GetCurrentBranch(suggestion.Repo);
@@ -200,8 +262,12 @@ internal sealed class SuggestCommits : BaseVerb<SuggestCommits>
 		}
 
 		ReviewState state = new(suggestion);
-		bool resolved = false;
-		while (!resolved)
+		if (initialMessage is not null)
+		{
+			state.SetMessage(initialMessage);
+		}
+
+		while (true)
 		{
 			if (state.Truncated)
 			{
@@ -225,7 +291,17 @@ internal sealed class SuggestCommits : BaseVerb<SuggestCommits>
 						break;
 					}
 
-					resolved = CommitRepo(suggestion.Repo, state.Message, push);
+					if (defer)
+					{
+						Console.WriteLine(push ? "  queued (commit + push) — continuing…" : "  queued (commit) — continuing…");
+						return new PendingAction(suggestion, state.Message, push);
+					}
+
+					if (CommitRepo(suggestion.Repo, state.Message, push))
+					{
+						return null;
+					}
+
 					break;
 				}
 
@@ -240,12 +316,90 @@ internal sealed class SuggestCommits : BaseVerb<SuggestCommits>
 					break;
 				case "S":
 					Console.WriteLine("  skipped.");
-					resolved = true;
-					break;
+					return null;
 				default:
 					Console.WriteLine("  unrecognised choice.");
 					break;
 			}
+		}
+	}
+
+	/// <summary>
+	/// Runs a queued commit/push without any interaction (it executes while the user reviews other
+	/// repos). When the repo is behind its upstream it auto-pulls with <c>--autostash</c>; a pull
+	/// conflict or a rejected push is reported as a failure to revisit at the end. Captures output
+	/// rather than printing, so it never interleaves with the foreground review.
+	/// </summary>
+	[SuppressMessage("Design", "CA1031:Do not catch general exception types",
+		Justification = "A background commit/push failure must not crash the run; it is surfaced as a failed outcome and offered for interactive retry.")]
+	private static ActionOutcome ExecuteInBackground(PendingAction action)
+	{
+		AbsoluteDirectoryPath repo = action.Suggestion.Repo;
+		try
+		{
+			_ = Git.Fetch(repo).ToList();
+
+			(int Ahead, int Behind)? ab = Git.GetUpstreamAheadBehind(repo);
+			if (ab is { Behind: > 0 })
+			{
+				List<string> pull = [.. Git.Pull(repo)];
+				if (HasConflict(pull))
+				{
+					return new(action, false, $"behind upstream by {ab.Value.Behind}; pull conflicted — resolve and retry");
+				}
+			}
+
+			_ = Git.StageAll(repo).ToList();
+			_ = Git.Commit(repo, action.Message).ToList();
+
+			if (action.Push)
+			{
+				List<string> push = [.. Git.Push(repo)];
+				if (HasPushRejection(push))
+				{
+					return new(action, false, "commit saved locally, but the push was rejected");
+				}
+			}
+
+			return new(action, true, action.Push ? "committed and pushed" : "committed");
+		}
+		catch (Exception ex)
+		{
+			return new(action, false, ex.Message);
+		}
+	}
+
+	private static void ReportOutcomes(List<ActionOutcome> outcomes)
+	{
+		int succeeded = outcomes.Count(o => o.Success);
+		int failed = outcomes.Count - succeeded;
+
+		Console.WriteLine();
+		Console.WriteLine($"Background actions complete: {succeeded} succeeded, {failed} failed.");
+		foreach (ActionOutcome outcome in outcomes.OrderBy(o => o.Action.Suggestion.Name, StringComparer.OrdinalIgnoreCase))
+		{
+			string icon = outcome.Success ? "✓" : "✗";
+			Console.WriteLine($"  {icon} {outcome.Action.Suggestion.Name}: {outcome.Summary}");
+		}
+	}
+
+	private static void RetryFailures(List<ActionOutcome> failed, CommitMessageGenerator generator, LlmSettings settings)
+	{
+		Console.WriteLine();
+		Console.Write($"Retry {failed.Count} failed action(s) interactively now? [Y/n] ");
+		string ans = (Console.ReadLine() ?? "").Trim().ToUpperInvariant();
+		if (ans is "N" or "NO")
+		{
+			return;
+		}
+
+		int total = failed.Count;
+		for (int i = 0; i < total; i++)
+		{
+			ActionOutcome outcome = failed[i];
+			Console.WriteLine();
+			Console.WriteLine($"  previously failed: {outcome.Summary}");
+			_ = ReviewOne(outcome.Action.Suggestion, i + 1, total, generator, settings, defer: false, initialMessage: outcome.Action.Message);
 		}
 	}
 

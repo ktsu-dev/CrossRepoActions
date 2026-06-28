@@ -136,19 +136,21 @@ dotnet run --project CrossRepoActions/CrossRepoActions.csproj -- SuggestCommits 
 
 The workflow is:
 
-1. **Discover & filter** — find repositories whose working tree is not clean.
+1. **Discover & filter** — find repositories whose working tree is not clean. Repositories that contain **untracked files are skipped** (and listed), because `git diff HEAD` doesn't include new files, so the model couldn't see their content even though `git add -A` would commit them. Commit, stash, or ignore new files first.
 2. **Fetch** — fetch all remotes (in parallel, with a progress counter) so ahead/behind is accurate.
 3. **Pull if behind** — for any repo behind its upstream, offer to pull (`--autostash`) before generating.
-4. **Generate** — in parallel, send each repo's `git diff` (capped, with untracked files noted) to the model and produce a Conventional Commits message. No version tag is added — the CI `[major]`/`[minor]`/`[patch]` bump is inferred by PSBuild when absent.
-5. **Review** — for each repo, see the target branch, ahead/behind, diff stat, a truncation flag if the diff was capped, and the suggested message, then choose:
+4. **Generate** — in parallel, send each repo's `git diff` to the model and produce a Conventional Commits message. The diff is fit to a character budget (`MaxDiffChars`) by including only **whole-file** diffs — a file whose diff would be clipped (and any after it) is dropped entirely rather than sent partially. No version tag is added — the CI `[major]`/`[minor]`/`[patch]` bump is inferred by PSBuild when absent.
+5. **Review** — for each repo, see the target branch, ahead/behind, diff stat, and (if the diff was budgeted) how many characters were sent vs. the full diff and which files were not fully included, then choose:
    - `[C]ommit` — stage all and commit on the current branch
    - `[P]ush` — stage, commit, then push
    - `[E]dit` — replace the message
    - `[R]egenerate` — ask the model again
-   - `[D]iff` — open the configured git diff tool (falls back to printing the diff)
+   - `[D]iff` — print the diff to the console
    - `[S]kip` — leave the repo untouched
 
-Before any commit or push, `SuggestCommits` re-fetches the repository and, if the remote has diverged, prompts to pull first — aborting the action on a pull conflict so you can resolve it manually.
+   If the suggestion was generated from a budgeted (truncated) diff, choosing commit/push first offers to resend the **full** diff and regenerate so the message accounts for every change.
+
+6. **Background execution** — `[C]ommit`/`[P]ush` run in the **background** so you can move straight to the next repo. Each background action re-fetches the repo and, if it is behind, auto-pulls with `--autostash` (a pull conflict or rejected push is recorded as a failure). When you finish reviewing, `SuggestCommits` waits for the background actions, prints a per-repo success/failure summary, and offers to walk through any failures interactively.
 
 ## How It Works
 
