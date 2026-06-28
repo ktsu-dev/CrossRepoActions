@@ -334,11 +334,12 @@ internal static class Git
 	}
 
 	/// <summary>
-	/// Gets the working-tree diff against HEAD (staged + unstaged changes to tracked files),
-	/// plus a list of untracked file paths (which <c>git diff HEAD</c> omits). The result is
-	/// truncated to <paramref name="maxChars"/>; <c>Truncated</c> reports whether it was cut.
+	/// Gets the complete, untruncated working-tree diff against HEAD (staged + unstaged changes
+	/// to tracked files). Untracked files are not included here — they are surfaced by name in
+	/// <see cref="GetDiffStat"/> instead. Budgeting/truncation is handled separately by
+	/// <see cref="Llm.DiffBudget"/> so it can drop whole files rather than clip a diff mid-file.
 	/// </summary>
-	internal static (string Diff, bool Truncated) GetDiff(AbsoluteDirectoryPath repo, int maxChars)
+	internal static string GetFullDiff(AbsoluteDirectoryPath repo)
 	{
 		using PowerShell ps = PowerShell.Create();
 		Collection<string> results = ps
@@ -349,22 +350,7 @@ internal static class Git
 			.AddArgument("HEAD")
 			.InvokeAndReturnOutput(PowershellStreams.All);
 
-		string diff = string.Join(Environment.NewLine, results);
-
-		IReadOnlyList<string> untracked = GetUntrackedFiles(repo);
-		if (untracked.Count > 0)
-		{
-			diff += $"{Environment.NewLine}{Environment.NewLine}# Untracked files:{Environment.NewLine}"
-				+ string.Join(Environment.NewLine, untracked);
-		}
-
-		bool truncated = diff.Length > maxChars;
-		if (truncated)
-		{
-			diff = diff[..maxChars];
-		}
-
-		return (diff, truncated);
+		return string.Join(Environment.NewLine, results);
 	}
 
 	/// <summary>
@@ -403,23 +389,6 @@ internal static class Git
 			.AddArgument(repo.ToString())
 			.AddArgument("add")
 			.AddArgument("-A")
-			.InvokeAndReturnOutput(PowershellStreams.All);
-	}
-
-	/// <summary>
-	/// Opens the configured git diff tool for the working tree. If no diff tool is configured,
-	/// the returned output contains git's error text and the caller falls back to printing the diff.
-	/// </summary>
-	internal static IEnumerable<string> OpenDiffTool(AbsoluteDirectoryPath repo)
-	{
-		using PowerShell ps = PowerShell.Create();
-		return ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("difftool")
-			.AddArgument("-d")
-			.AddArgument("--no-prompt")
 			.InvokeAndReturnOutput(PowershellStreams.All);
 	}
 }

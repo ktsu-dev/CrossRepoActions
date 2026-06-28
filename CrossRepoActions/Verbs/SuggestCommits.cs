@@ -24,7 +24,32 @@ internal sealed class SuggestCommits : BaseVerb<SuggestCommits>
 		string DiffStat,
 		string Message,
 		bool Truncated,
+		int SentDiffLength,
+		int FullDiffLength,
+		IReadOnlyList<string> OmittedFiles,
 		string? Error);
+
+	private sealed class ReviewState
+	{
+		internal ReviewState(Suggestion suggestion) => ApplyFresh(suggestion);
+
+		internal string Message { get; private set; } = "";
+		internal bool Truncated { get; private set; }
+		internal int SentDiffLength { get; private set; }
+		internal int FullDiffLength { get; private set; }
+		internal IReadOnlyList<string> OmittedFiles { get; private set; } = [];
+
+		internal void SetMessage(string message) => Message = message;
+
+		internal void ApplyFresh(Suggestion suggestion)
+		{
+			Message = suggestion.Message;
+			Truncated = suggestion.Truncated;
+			SentDiffLength = suggestion.SentDiffLength;
+			FullDiffLength = suggestion.FullDiffLength;
+			OmittedFiles = suggestion.OmittedFiles;
+		}
+	}
 
 	internal override void Run(SuggestCommits options)
 	{
@@ -121,19 +146,21 @@ internal sealed class SuggestCommits : BaseVerb<SuggestCommits>
 
 	[SuppressMessage("Design", "CA1031:Do not catch general exception types",
 		Justification = "A per-repo generation failure (network, auth, parsing) must not abort the whole batch; the error is surfaced to the user in the review phase.")]
-	private static Suggestion GenerateOne(AbsoluteDirectoryPath repo, CommitMessageGenerator generator, LlmSettings settings)
+	private static Suggestion GenerateOne(AbsoluteDirectoryPath repo, CommitMessageGenerator generator, LlmSettings settings, bool fullDiff = false)
 	{
 		string name = System.IO.Path.GetFileName(repo.ToString());
 		try
 		{
 			string stat = Git.GetDiffStat(repo);
-			(string diff, bool truncated) = Git.GetDiff(repo, settings.MaxDiffChars);
-			string message = generator.GenerateAsync(stat, diff, truncated).GetAwaiter().GetResult();
-			return new(repo, name, stat, message, truncated, null);
+			string full = Git.GetFullDiff(repo);
+			int cap = fullDiff ? int.MaxValue : settings.MaxDiffChars;
+			DiffBudget.Result budget = DiffBudget.Apply(full, cap);
+			string message = generator.GenerateAsync(stat, budget.PromptDiff, budget.Truncated).GetAwaiter().GetResult();
+			return new(repo, name, stat, message, budget.Truncated, budget.PromptDiff.Length, budget.FullLength, budget.OmittedFiles, null);
 		}
 		catch (Exception ex)
 		{
-			return new(repo, name, "", "", false, ex.Message);
+			return new(repo, name, "", "", false, 0, 0, [], ex.Message);
 		}
 	}
 
@@ -172,33 +199,41 @@ internal sealed class SuggestCommits : BaseVerb<SuggestCommits>
 			Console.WriteLine($"    {line.TrimEnd()}");
 		}
 
-		if (suggestion.Truncated)
-		{
-			Console.WriteLine("  ⚠ diff was truncated before sending to the model — use [D]iff to see the full changes.");
-		}
-
-		string message = suggestion.Message;
+		ReviewState state = new(suggestion);
 		bool resolved = false;
 		while (!resolved)
 		{
+			if (state.Truncated)
+			{
+				Console.WriteLine($"  ⚠ diff truncated: sent {state.SentDiffLength} of {state.FullDiffLength} chars; "
+					+ $"{state.OmittedFiles.Count} file(s) not fully included: {string.Join(", ", state.OmittedFiles)}");
+			}
+
 			Console.WriteLine();
 			Console.WriteLine("  suggested message:");
-			Console.WriteLine($"    {message.Replace("\n", "\n    ", StringComparison.Ordinal)}");
+			Console.WriteLine($"    {state.Message.Replace("\n", "\n    ", StringComparison.Ordinal)}");
 			Console.Write("  [C]ommit / [P]ush / [E]dit / [R]egenerate / [D]iff / [S]kip ? ");
 			string choice = (Console.ReadLine() ?? "").Trim().ToUpperInvariant();
 			switch (choice)
 			{
 				case "C":
-					resolved = CommitRepo(suggestion.Repo, message, push: false);
-					break;
 				case "P":
-					resolved = CommitRepo(suggestion.Repo, message, push: true);
+				{
+					bool push = choice == "P";
+					if (state.Truncated && !ConfirmTruncatedCommit(suggestion.Repo, state, generator, settings))
+					{
+						break;
+					}
+
+					resolved = CommitRepo(suggestion.Repo, state.Message, push);
 					break;
+				}
+
 				case "E":
-					message = EditMessage(message);
+					state.SetMessage(EditMessage(state.Message));
 					break;
 				case "R":
-					message = Regenerate(suggestion, generator, settings) ?? message;
+					Regenerate(suggestion.Repo, generator, settings, state, fullDiff: false);
 					break;
 				case "D":
 					ShowDiff(suggestion.Repo);
@@ -212,6 +247,48 @@ internal sealed class SuggestCommits : BaseVerb<SuggestCommits>
 					break;
 			}
 		}
+	}
+
+	/// <summary>
+	/// When a suggestion was generated from a truncated diff, gives the user the chance to resend
+	/// the complete diff before committing. Returns <see langword="true"/> to proceed with the
+	/// commit as-is, or <see langword="false"/> to return to the review prompt (cancelled, or the
+	/// message was regenerated from the full diff and should be re-read first).
+	/// </summary>
+	private static bool ConfirmTruncatedCommit(AbsoluteDirectoryPath repo, ReviewState state, CommitMessageGenerator generator, LlmSettings settings)
+	{
+		Console.WriteLine($"  diff was truncated — sent {state.SentDiffLength} of {state.FullDiffLength} chars.");
+		if (state.OmittedFiles.Count > 0)
+		{
+			Console.WriteLine($"  not fully included: {string.Join(", ", state.OmittedFiles)}");
+		}
+
+		Console.Write($"  Submit the FULL diff ({state.FullDiffLength} chars) and regenerate first? [F]ull / commit [A]s-is / [C]ancel ? ");
+		string ans = (Console.ReadLine() ?? "").Trim().ToUpperInvariant();
+		switch (ans)
+		{
+			case "A":
+				return true;
+			case "F":
+				Regenerate(repo, generator, settings, state, fullDiff: true);
+				return false;
+			default:
+				Console.WriteLine("  cancelled.");
+				return false;
+		}
+	}
+
+	private static void Regenerate(AbsoluteDirectoryPath repo, CommitMessageGenerator generator, LlmSettings settings, ReviewState state, bool fullDiff)
+	{
+		Console.WriteLine(fullDiff ? "  regenerating with the full diff…" : "  regenerating…");
+		Suggestion fresh = GenerateOne(repo, generator, settings, fullDiff);
+		if (fresh.Error is not null)
+		{
+			Console.WriteLine($"  regeneration failed: {fresh.Error}");
+			return;
+		}
+
+		state.ApplyFresh(fresh);
 	}
 
 	private static bool CommitRepo(AbsoluteDirectoryPath repo, string message, bool push)
@@ -296,40 +373,18 @@ internal sealed class SuggestCommits : BaseVerb<SuggestCommits>
 		return string.IsNullOrWhiteSpace(edited) ? current : edited;
 	}
 
-	private static string? Regenerate(Suggestion suggestion, CommitMessageGenerator generator, LlmSettings settings)
-	{
-		Console.WriteLine("  regenerating…");
-		Suggestion fresh = GenerateOne(suggestion.Repo, generator, settings);
-		if (fresh.Error is not null)
-		{
-			Console.WriteLine($"  regeneration failed: {fresh.Error}");
-			return null;
-		}
-
-		return fresh.Message;
-	}
-
 	private static void ShowDiff(AbsoluteDirectoryPath repo)
 	{
-		List<string> output = [.. Git.OpenDiffTool(repo)];
-		bool failed = output.Any(l =>
-			l.Contains("fatal", StringComparison.OrdinalIgnoreCase)
-			|| l.Contains("not a valid", StringComparison.OrdinalIgnoreCase)
-			|| l.Contains("No known", StringComparison.OrdinalIgnoreCase));
+		string diff = Git.GetFullDiff(repo);
+		if (string.IsNullOrWhiteSpace(diff))
+		{
+			Console.WriteLine("  (no tracked changes to show — see the untracked files in the changes summary above)");
+			return;
+		}
 
-		if (output.Count == 0 || failed)
-		{
-			Console.WriteLine("  no diff tool available — printing diff:");
-			(string diff, _) = Git.GetDiff(repo, int.MaxValue);
-			Console.WriteLine(diff);
-		}
-		else
-		{
-			foreach (string line in output)
-			{
-				Console.WriteLine($"    {line}");
-			}
-		}
+		Console.WriteLine();
+		Console.WriteLine(diff);
+		Console.WriteLine();
 	}
 
 	private static bool HasConflict(IEnumerable<string> gitOutput) =>
