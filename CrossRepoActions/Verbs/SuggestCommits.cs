@@ -233,9 +233,16 @@ internal sealed class SuggestCommits : BaseVerb<SuggestCommits>
 
 		if (push)
 		{
-			foreach (string line in Git.Push(repo))
+			List<string> pushOutput = [.. Git.Push(repo)];
+			foreach (string line in pushOutput)
 			{
 				Console.WriteLine($"    {line}");
+			}
+
+			if (HasPushRejection(pushOutput))
+			{
+				Console.WriteLine("  ✗ commit saved locally, but the push was rejected — pull/resolve and push manually.");
+				return true;
 			}
 		}
 
@@ -329,4 +336,11 @@ internal sealed class SuggestCommits : BaseVerb<SuggestCommits>
 		gitOutput.Any(l =>
 			l.Contains("CONFLICT", StringComparison.OrdinalIgnoreCase)
 			|| l.Contains("Automatic merge failed", StringComparison.OrdinalIgnoreCase));
+
+	private static bool HasPushRejection(IEnumerable<string> gitOutput) =>
+		gitOutput.Any(l =>
+			l.Contains("[rejected]", StringComparison.OrdinalIgnoreCase)
+			|| l.Contains("failed to push", StringComparison.OrdinalIgnoreCase)
+			|| l.Contains("non-fast-forward", StringComparison.OrdinalIgnoreCase)
+			|| l.Contains("fatal:", StringComparison.OrdinalIgnoreCase));
 }
