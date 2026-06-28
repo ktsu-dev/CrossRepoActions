@@ -25,10 +25,20 @@ dotnet run --project CrossRepoActions/CrossRepoActions.csproj
 dotnet run --project CrossRepoActions/CrossRepoActions.csproj -- BuildAndTest -p c:/dev/ktsu-dev
 dotnet run --project CrossRepoActions/CrossRepoActions.csproj -- DiscoverRepositories -p c:/dev/ktsu-dev
 dotnet run --project CrossRepoActions/CrossRepoActions.csproj -- UpdatePackages -p c:/dev/ktsu-dev
+dotnet run --project CrossRepoActions/CrossRepoActions.csproj -- ConfigureLlm
+dotnet run --project CrossRepoActions/CrossRepoActions.csproj -- SuggestCommits -p c:/dev/ktsu-dev
 ```
 
 ### Testing
-No test projects currently exist in this solution.
+```bash
+# Run all tests
+dotnet test
+
+# Run a single test
+dotnet test --filter "FullyQualifiedName~CommitMessageGeneratorTests"
+```
+
+Tests live in `CrossRepoActions.Test` (MSTest, via `MSTest.Sdk` + `ktsu.Sdk`). The app exposes its internals to the test project through `InternalsVisibleTo` in `CrossRepoActions/AssemblyInfo.cs`. The pure, logic-heavy `CommitMessageGenerator` is unit-tested with a fake `ILlmService`; thin PowerShell/Semantic Kernel wrappers are not unit-tested.
 
 ## Architecture
 
@@ -44,13 +54,24 @@ The application uses a **verb-based command architecture** powered by CommandLin
   - `BuildAndTest`: Builds all discovered solutions and runs tests
   - `DiscoverRepositories`: Scans directory tree for git repositories
   - `DiscoverSolutions`: Finds and analyzes .NET solutions
-  - `GitPull`: Pulls latest changes from all repositories
+  - `ListRepositories`: Lists repos with branch, working-tree status, and ahead/behind
+  - `GitPull` / `GitFetch`: Pull / fetch across all repositories
+  - `InstallGitLfs`: Installs Git LFS hooks locally per repository
   - `UpdatePackages`: Updates NuGet packages across solutions
-- **PersistentState.cs**: App data storage for caching discovered repos/solutions (uses ktsu.AppDataStorage)
-- **Git.cs**: Git operations wrapper using PowerShell automation
+  - `ConfigureLlm`: Interactive verb to set OpenAI LLM settings (masked API key entry)
+  - `SuggestCommits`: Generates AI commit messages for dirty repos, then review/commit/push
+  - `Formatting`: Shared static helper (ahead/behind formatting) used by multiple verbs
+- **Llm/**: LLM integration layer
+  - `ILlmService`: Abstraction over a remote chat LLM (`CompleteAsync`)
+  - `SemanticKernelLlmService`: `ILlmService` backed by OpenAI via Microsoft Semantic Kernel
+  - `CommitMessageGenerator`: Pure prompt-building + response-cleaning over `ILlmService` (unit-tested)
+  - `LlmSettings`: Persisted OpenAI settings (ApiKey, Model, OrganizationId, MaxDiffChars)
+- **PersistentState.cs**: App data storage for caching discovered repos/solutions and `LlmSettings` (uses ktsu.AppDataStorage)
+- **Git.cs**: Git operations wrapper using PowerShell automation (incl. diff/stage/difftool helpers)
 - **Dotnet.cs**: .NET CLI operations wrapper using PowerShell automation
 - **Solution.cs**: Data model representing a solution with projects, packages, and dependencies
 - **PowershellExtensions.cs**: Extension methods for PowerShell invocation
+- **AssemblyInfo.cs**: Assembly attributes, including `InternalsVisibleTo` for the test project
 
 ### Key Patterns
 
@@ -87,17 +108,20 @@ The `.github/workflows/dotnet.yml` workflow orchestrates:
 
 ## Dependencies & SDK
 
-- **Target Framework**: .NET 9.0 (global.json:3)
-- **Custom SDKs**: Uses ktsu.Sdk.App/1.8.0 (project-specific SDK for build configuration)
+- **Target Framework**: .NET 10.0
+- **Custom SDKs**: Uses the `ktsu.Sdk` family (pinned in `global.json`, currently 2.11.0) — the app uses `Microsoft.NET.Sdk` + `ktsu.Sdk` + `ktsu.Sdk.ConsoleApp`; the test project uses `MSTest.Sdk` + `ktsu.Sdk`
 - **Key Dependencies**:
   - CommandLineParser: CLI argument parsing
   - ConsoleTools (DustInTheWind): Interactive menus and spinners
-  - Microsoft.PowerShell.SDK: PowerShell automation
-  - ktsu.StrongPaths: Strongly-typed path handling
+  - Microsoft.PowerShell.SDK / System.Management.Automation: PowerShell automation
+  - Microsoft.SemanticKernel (+ Connectors.OpenAI, Abstractions, Core): remote LLM integration
+  - ktsu.Semantics.Paths / ktsu.Semantics.Strings: strongly-typed paths and strings
   - ktsu.AppDataStorage: Persistent state management
+  - ktsu.Extensions / ktsu.RunCommand: helper extensions and command running
   - NuGet.Versioning: Version comparison and parsing
+  - Polyfill: backports newer BCL APIs (e.g. `Ensure.NotNull`)
 
-**Package Management**: Uses Central Package Management (Directory.Packages.props) with `ManagePackageVersionsCentrally=true`.
+**Package Management**: Uses Central Package Management (Directory.Packages.props) with `ManagePackageVersionsCentrally=true`. The `ktsu.Sdk` analyzers enforce that every `PackageVersion` is referenced (KTSU0005) and that directly-used transitive packages are referenced explicitly (KTSU0006).
 
 ## Development Notes
 

@@ -12,12 +12,15 @@ A powerful C# console application for performing batch operations across multipl
 - **Smart Caching**: Cache discovery results for faster subsequent operations
 - **Interactive Menu**: User-friendly console menu for easy operation selection
 - **Parallel Processing**: Efficient parallel execution of operations where possible
+- **Repository Status**: List repositories with branch, working-tree status, and ahead/behind tracking
+- **AI Commit Messages**: Generate suggested Conventional Commits messages for repositories with uncommitted changes using a remote LLM (OpenAI via Microsoft Semantic Kernel), then review and commit/push them
 
 ## Requirements
 
-- .NET 9.0 SDK or later
+- .NET 10.0 SDK or later
 - PowerShell Core (cross-platform)
 - Git
+- An OpenAI API key (only required for the AI commit message feature)
 
 ## Installation
 
@@ -68,6 +71,15 @@ dotnet run --project CrossRepoActions/CrossRepoActions.csproj -- GitPull -p c:/d
 
 # Update packages across solutions
 dotnet run --project CrossRepoActions/CrossRepoActions.csproj -- UpdatePackages -p c:/dev/ktsu-dev
+
+# List repositories with branch and ahead/behind status
+dotnet run --project CrossRepoActions/CrossRepoActions.csproj -- ListRepositories -p c:/dev/ktsu-dev
+
+# Configure the OpenAI LLM settings (model, API key, etc.)
+dotnet run --project CrossRepoActions/CrossRepoActions.csproj -- ConfigureLlm
+
+# Suggest AI commit messages for repos with uncommitted changes
+dotnet run --project CrossRepoActions/CrossRepoActions.csproj -- SuggestCommits -p c:/dev/ktsu-dev
 ```
 
 ## Available Commands
@@ -77,9 +89,14 @@ dotnet run --project CrossRepoActions/CrossRepoActions.csproj -- UpdatePackages 
 | `Menu` | Launch interactive menu (default) |
 | `DiscoverRepositories` | Scan directory tree for git repositories and cache results |
 | `DiscoverSolutions` | Find all .NET solutions, analyze dependencies, and sort by build order |
+| `ListRepositories` | List repositories with branch, working-tree status, and upstream/default ahead-behind |
 | `BuildAndTest` | Build all discovered solutions and run tests with visual feedback |
 | `GitPull` | Pull latest changes from all discovered repositories |
+| `GitFetch` | Fetch from all remotes across all discovered repositories |
+| `InstallGitLfs` | Install Git LFS hooks locally in each discovered repository |
 | `UpdatePackages` | Update outdated NuGet packages across multiple projects |
+| `ConfigureLlm` | Configure OpenAI LLM settings (model, organization, max diff size, API key) |
+| `SuggestCommits` | Generate AI commit messages for repos with uncommitted changes, then review/commit/push |
 
 ## Configuration
 
@@ -98,6 +115,40 @@ CrossRepoActions caches discovered repositories and solutions for faster subsequ
 ### Parallel Processing
 
 Operations are executed in parallel where possible for maximum performance. The degree of parallelism is configurable in `Program.cs`.
+
+### LLM Settings
+
+The AI commit message feature talks to OpenAI through [Microsoft Semantic Kernel](https://github.com/microsoft/semantic-kernel). Settings (model, organization ID, maximum diff size, and API key) are stored in the same platform-specific app data location as the discovery cache. Configure them interactively with the `ConfigureLlm` command — the API key is entered masked and displayed masked thereafter. The default model is `gpt-5.4-mini`.
+
+> The API key is stored in plaintext in app data (consistent with how the app caches other state). Repository diffs are sent to OpenAI only when you run `SuggestCommits`.
+
+## AI Commit Messages
+
+The `SuggestCommits` command generates suggested commit messages for every repository with uncommitted local changes:
+
+```bash
+# One-time setup
+dotnet run --project CrossRepoActions/CrossRepoActions.csproj -- ConfigureLlm
+
+# Generate and review suggestions
+dotnet run --project CrossRepoActions/CrossRepoActions.csproj -- SuggestCommits -p c:/dev/ktsu-dev
+```
+
+The workflow is:
+
+1. **Discover & filter** — find repositories whose working tree is not clean.
+2. **Fetch** — fetch all remotes (in parallel, with a progress counter) so ahead/behind is accurate.
+3. **Pull if behind** — for any repo behind its upstream, offer to pull (`--autostash`) before generating.
+4. **Generate** — in parallel, send each repo's `git diff` (capped, with untracked files noted) to the model and produce a Conventional Commits message. No version tag is added — the CI `[major]`/`[minor]`/`[patch]` bump is inferred by PSBuild when absent.
+5. **Review** — for each repo, see the target branch, ahead/behind, diff stat, a truncation flag if the diff was capped, and the suggested message, then choose:
+   - `[C]ommit` — stage all and commit on the current branch
+   - `[P]ush` — stage, commit, then push
+   - `[E]dit` — replace the message
+   - `[R]egenerate` — ask the model again
+   - `[D]iff` — open the configured git diff tool (falls back to printing the diff)
+   - `[S]kip` — leave the repo untouched
+
+Before any commit or push, `SuggestCommits` re-fetches the repository and, if the remote has diverged, prompts to pull first — aborting the action on a pull conflict so you can resolve it manually.
 
 ## How It Works
 

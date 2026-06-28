@@ -1,1 +1,1 @@
-cross repo actions;git operations;batch operations;multi repository;dotnet solutions;build automation;package updates;dependency resolution;parallel processing;cli tool;repository management;monorepo;dotnet;csharp
+cross repo actions;git operations;batch operations;multi repository;dotnet solutions;build automation;package updates;dependency resolution;parallel processing;cli tool;repository management;monorepo;dotnet;csharp;ai;llm;semantic kernel;openai;commit messages;conventional commits;code automation

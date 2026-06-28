@@ -1,1 +1,1 @@
-CrossRepoActions
+A .NET console tool for performing batch operations across many git repositories and .NET solutions at organization scale. Discovers repositories and solutions, builds and tests them in dependency order, updates NuGet packages, reports per-repo git status, and runs git operations in bulk. Includes AI-assisted commit messages: it generates Conventional Commits suggestions for repositories with uncommitted changes using a remote LLM (OpenAI via Microsoft Semantic Kernel) and lets you review, commit, and push them interactively.
