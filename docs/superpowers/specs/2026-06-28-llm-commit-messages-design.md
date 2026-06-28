@@ -40,7 +40,7 @@ Extend `PersistentState` with an `LlmSettings` object:
 | Field            | Type     | Default        | Notes                                        |
 |------------------|----------|----------------|----------------------------------------------|
 | `ApiKey`         | `string` | `""`           | OpenAI API key. Masked on display.           |
-| `Model`          | `string` | `gpt-4o-mini`  | OpenAI chat model id.                         |
+| `Model`          | `string` | `gpt-5.4-mini` | OpenAI chat model id.                         |
 | `OrganizationId` | `string` | `""`           | Optional OpenAI org id.                       |
 | `MaxDiffChars`   | `int`    | `8000`         | Per-repo cap on diff text sent to the model.  |
 
