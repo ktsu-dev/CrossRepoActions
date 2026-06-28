@@ -70,41 +70,14 @@ internal sealed class ListRepositories : BaseVerb<ListRepositories>
 		foreach (RepoStatus status in statuses.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
 		{
 			string statusIndicator = status.WorkingStatus == "clean" ? "✓" : "●";
-			string upstreamStr = FormatAheadBehind(status.Upstream);
+			string upstreamStr = Formatting.FormatAheadBehind(status.Upstream);
 
 			string vsDefaultStr = status.VsDefault is not null
-				? $"  {status.DefaultRef}: {FormatAheadBehind(status.VsDefault)}"
+				? $"  {status.DefaultRef}: {Formatting.FormatAheadBehind(status.VsDefault)}"
 				: "";
 
 			Console.WriteLine(
 				$"{statusIndicator} {status.Name,-40} [{status.Branch,-24}] {status.WorkingStatus,-12} {upstreamStr,-10}{vsDefaultStr}");
 		}
-	}
-
-	private static string FormatAheadBehind((int Ahead, int Behind)? aheadBehind)
-	{
-		if (aheadBehind is null)
-		{
-			return "—";
-		}
-
-		(int ahead, int behind) = aheadBehind.Value;
-		if (ahead == 0 && behind == 0)
-		{
-			return "≡";
-		}
-
-		List<string> parts = [];
-		if (ahead > 0)
-		{
-			parts.Add($"↑{ahead}");
-		}
-
-		if (behind > 0)
-		{
-			parts.Add($"↓{behind}");
-		}
-
-		return string.Join(" ", parts);
 	}
 }
