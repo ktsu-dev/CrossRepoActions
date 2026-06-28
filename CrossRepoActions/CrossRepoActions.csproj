@@ -23,6 +23,8 @@
     <PackageReference Include="ktsu.Semantics.Paths" />
     <PackageReference Include="ktsu.Semantics.Strings" />
     <PackageReference Include="Microsoft.PowerShell.SDK" />
+    <PackageReference Include="Microsoft.SemanticKernel" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" />
     <PackageReference Include="NuGet.Versioning" />
     <PackageReference Include="Polyfill" />
     <PackageReference Include="System.Management.Automation" />
