@@ -115,9 +115,11 @@ option.
    `GetStatusSummary` is not `clean`.
 2. **Fetch phase (parallel)** — `git fetch --all` on every dirty repo before any
    generation, so ahead/behind is accurate. Uses `Parallel.ForEach` with
-   `Program.MaxParallelism`, with a spinner.
+   `Program.MaxParallelism`. Shows a **live progress counter** (`Fetching N/total…`)
+   that increments as each repo completes (see Progress reporting).
 3. **Behind-check / pull prompt (sequential)** — for each dirty repo, compute
-   `GetUpstreamAheadBehind`. If the repo is **behind** its upstream, prompt:
+   `GetUpstreamAheadBehind`. Prefix each repo with its serial position
+   (`[i/total] <repo>`). If the repo is **behind** its upstream, prompt:
    *"<repo> is behind <upstream> by N. Pull before generating? [Y/n]"*.
    - Yes → `git pull --autostash`; on conflict, report and skip that repo.
    - No → proceed using the current local state.
@@ -125,8 +127,10 @@ option.
 4. **Generate phase (parallel)** — for each remaining dirty repo: gather
    `GetDiffStat` + `GetDiff(MaxDiffChars)`, call `CommitMessageGenerator`. Collect
    results and per-repo errors (a generation failure for one repo does not abort the
-   batch). Spinner shown.
-5. **Review phase (sequential)** — for each repo print:
+   batch). Shows a **live progress counter** (`Generating N/total…`) that increments as
+   each repo's suggestion completes.
+5. **Review phase (sequential)** — for each repo, prefixed with its serial position
+   (`[i/total]`), print:
    - repo name
    - **target branch**: the current branch the commit would land on
      (`GetCurrentBranch`), its upstream (`GetUpstreamBranch`), and ahead/behind
@@ -143,6 +147,22 @@ option.
    - **Regenerate** → re-run generation for this repo, then re-display.
    - **Diff** → `OpenDiffTool(repo)`, then re-display the prompt.
    - **Skip** → leave the repo untouched.
+
+### Progress reporting
+
+Every phase reports progress so long-running batches are legible:
+
+- **Parallel phases (fetch, generate)** — a single live-updating counter line,
+  `<verb> N/total…`, where `N` is incremented with `Interlocked.Increment` as each
+  repo's task finishes (order-independent). The line is rewritten in place (carriage
+  return / `Console` cursor) rather than printing one line per repo, and a final
+  `<verb> done (total)` line is emitted when the phase completes.
+- **Serial phases (behind-check, review)** — each repo is prefixed with its position
+  `[i/total]` as the loop advances from repo to repo, so the user always sees how far
+  through the batch they are.
+
+Console writes from parallel phases are synchronised with a lock, matching the existing
+pattern used elsewhere in the codebase.
 
 ### Remote re-check (before Commit/Push acts)
 
