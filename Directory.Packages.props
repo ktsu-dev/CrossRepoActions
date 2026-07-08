@@ -15,7 +15,7 @@
     <PackageVersion Include="ktsu.Semantics.Paths" Version="2.5.3" />
     <PackageVersion Include="ktsu.Semantics.Strings" Version="2.5.3" />
     <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.6.3" />
-    <PackageVersion Include="Microsoft.SemanticKernel" Version="1.77.0" />
+    <PackageVersion Include="Microsoft.SemanticKernel" Version="1.78.0" />
     <PackageVersion Include="Microsoft.SemanticKernel.Abstractions" Version="1.78.0" />
     <PackageVersion Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.78.0" />
     <PackageVersion Include="Microsoft.SemanticKernel.Core" Version="1.78.0" />
