@@ -14,7 +14,7 @@
     <PackageVersion Include="ktsu.RunCommand" Version="1.4.20" />
     <PackageVersion Include="ktsu.Semantics.Paths" Version="2.7.3" />
     <PackageVersion Include="ktsu.Semantics.Strings" Version="2.7.3" />
-    <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.6.3" />
+    <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.6.4" />
     <PackageVersion Include="Microsoft.SemanticKernel" Version="1.78.0" />
     <PackageVersion Include="Microsoft.SemanticKernel.Abstractions" Version="1.78.0" />
     <PackageVersion Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.78.0" />
@@ -28,6 +28,6 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="1.7.2" />
     <PackageVersion Include="NuGet.Versioning" Version="7.6.0" />
     <PackageVersion Include="Polyfill" Version="11.0.1" />
-    <PackageVersion Include="System.Management.Automation" Version="7.6.3" />
+    <PackageVersion Include="System.Management.Automation" Version="7.6.4" />
   </ItemGroup>
 </Project>
