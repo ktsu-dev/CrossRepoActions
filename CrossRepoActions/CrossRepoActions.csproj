@@ -30,6 +30,7 @@
     <PackageReference Include="NuGet.Versioning" />
     <PackageReference Include="Polyfill" />
     <PackageReference Include="System.Management.Automation" />
+    <PackageReference Include="System.Security.Cryptography.Xml" />
   </ItemGroup>
 
 </Project>

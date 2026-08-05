@@ -19,15 +19,14 @@
     <PackageVersion Include="Microsoft.SemanticKernel.Abstractions" Version="1.78.0" />
     <PackageVersion Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.78.0" />
     <PackageVersion Include="Microsoft.SemanticKernel.Core" Version="1.78.0" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="17.14.2" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.CrashDump" Version="1.7.2" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.Fakes" Version="17.14.1" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.HangDump" Version="1.7.2" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.HotReload" Version="1.7.2" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.Retry" Version="1.7.2" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="1.7.2" />
+    <!-- Microsoft.Testing.Extensions.* versions are owned by MSTest.Sdk, which injects a matching
+         PackageVersion for every extension it references. Declaring them here duplicates those
+         entries and fails restore with NU1506. -->
     <PackageVersion Include="NuGet.Versioning" Version="7.6.0" />
     <PackageVersion Include="Polyfill" Version="11.0.1" />
     <PackageVersion Include="System.Management.Automation" Version="7.6.4" />
+    <!-- Transitive of Microsoft.PowerShell.SDK / System.Management.Automation; pinned forward off
+         the vulnerable 10.0.6 those packages resolve to (NU1903). -->
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.10" />
   </ItemGroup>
 </Project>
