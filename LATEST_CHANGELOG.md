@@ -1,9 +1,6 @@
-## v1.5.11 (patch)
+## v1.5.12 (patch)
 
-Changes since v1.5.10:
+Changes since v1.5.11:
 
-- Sync .github\workflows\update-sdks.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dependabot-merge.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitattributes ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Bump the ktsu group with 12 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 
