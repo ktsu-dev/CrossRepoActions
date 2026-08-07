@@ -23,7 +23,7 @@
          PackageVersion for every extension it references. Declaring them here duplicates those
          entries and fails restore with NU1506. -->
     <PackageVersion Include="NuGet.Versioning" Version="7.6.0" />
-    <PackageVersion Include="Polyfill" Version="11.0.1" />
+    <PackageVersion Include="Polyfill" Version="11.0.2" />
     <PackageVersion Include="System.Management.Automation" Version="7.6.4" />
     <!-- Transitive of Microsoft.PowerShell.SDK / System.Management.Automation; pinned forward off
          the vulnerable 10.0.6 those packages resolve to (NU1903). -->
