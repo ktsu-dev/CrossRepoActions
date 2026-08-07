@@ -1,4 +1,6 @@
-## v1.5.13
+## v1.5.14 (patch)
 
-No significant changes detected since v1.5.13.
+Changes since v1.5.13:
+
+- Sync global.json ([@KtsuTools](https://github.com/KtsuTools))
 
