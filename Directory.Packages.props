@@ -10,10 +10,10 @@
     <PackageVersion Include="ConsoleTools.Controls.Spinners" Version="1.2.1" />
     <PackageVersion Include="ConsoleTools.Core" Version="1.2.1" />
     <PackageVersion Include="ktsu.AppDataStorage" Version="1.16.33" />
-    <PackageVersion Include="ktsu.Extensions" Version="1.5.32" />
-    <PackageVersion Include="ktsu.RunCommand" Version="1.4.23" />
-    <PackageVersion Include="ktsu.Semantics.Paths" Version="2.9.1" />
-    <PackageVersion Include="ktsu.Semantics.Strings" Version="2.9.1" />
+    <PackageVersion Include="ktsu.Extensions" Version="1.5.35" />
+    <PackageVersion Include="ktsu.RunCommand" Version="1.4.25" />
+    <PackageVersion Include="ktsu.Semantics.Paths" Version="2.9.3" />
+    <PackageVersion Include="ktsu.Semantics.Strings" Version="2.9.3" />
     <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.6.4" />
     <PackageVersion Include="Microsoft.SemanticKernel" Version="1.78.0" />
     <PackageVersion Include="Microsoft.SemanticKernel.Abstractions" Version="1.78.0" />
@@ -23,7 +23,7 @@
          PackageVersion for every extension it references. Declaring them here duplicates those
          entries and fails restore with NU1506. -->
     <PackageVersion Include="NuGet.Versioning" Version="7.6.0" />
-    <PackageVersion Include="Polyfill" Version="11.0.1" />
+    <PackageVersion Include="Polyfill" Version="11.0.2" />
     <PackageVersion Include="System.Management.Automation" Version="7.6.4" />
     <!-- Transitive of Microsoft.PowerShell.SDK / System.Management.Automation; pinned forward off
          the vulnerable 10.0.6 those packages resolve to (NU1903). -->
