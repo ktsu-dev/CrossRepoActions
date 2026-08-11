@@ -21,7 +21,7 @@
     <!-- Microsoft.Testing.Extensions.* versions are owned by MSTest.Sdk, which injects a matching
          PackageVersion for every extension it references. Declaring them here duplicates those
          entries and fails restore with NU1506. -->
-    <PackageVersion Include="NuGet.Versioning" Version="7.6.0" />
+    <PackageVersion Include="NuGet.Versioning" Version="7.9.0" />
     <PackageVersion Include="Polyfill" Version="11.0.2" />
   </ItemGroup>
 </Project>
