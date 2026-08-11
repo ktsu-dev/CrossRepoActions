@@ -5,7 +5,6 @@ namespace ktsu.CrossRepoActions;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Management.Automation;
 
 using ktsu.Extensions;
 using ktsu.Semantics.Paths;
@@ -32,156 +31,67 @@ internal static class Git
 		return persistentState.CachedRepos;
 	}
 
-	internal static IEnumerable<string> Pull(AbsoluteDirectoryPath repo)
-	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("pull")
-			.AddArgument("--all")
-			.AddArgument("--autostash")
-			.AddArgument("-v")
-			.InvokeAndReturnOutput(PowershellStreams.All);
+	// Transfer commands report their whole progress narrative on standard error, so these return
+	// both streams. Callers scan the result for "error:" and for conflict and rejection markers.
+	internal static IEnumerable<string> Pull(AbsoluteDirectoryPath repo) =>
+		GitCli.Run(repo, "pull", "--all", "--autostash", "-v").AllLines;
 
-		return results;
-	}
+	internal static IEnumerable<string> Fetch(AbsoluteDirectoryPath repo) =>
+		GitCli.Run(repo, "fetch", "--all", "-v").AllLines;
 
-	internal static IEnumerable<string> Fetch(AbsoluteDirectoryPath repo)
-	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("fetch")
-			.AddArgument("--all")
-			.AddArgument("-v")
-			.InvokeAndReturnOutput(PowershellStreams.All);
+	internal static IEnumerable<string> InstallLfs(AbsoluteDirectoryPath repo) =>
+		GitCli.Run(repo, "lfs", "install", "--local").AllLines;
 
-		return results;
-	}
+	internal static IEnumerable<string> Push(AbsoluteDirectoryPath repo) =>
+		GitCli.Run(repo, "push", "-v").AllLines;
 
-	internal static IEnumerable<string> InstallLfs(AbsoluteDirectoryPath repo)
-	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("lfs")
-			.AddArgument("install")
-			.AddArgument("--local")
-			.InvokeAndReturnOutput(PowershellStreams.All);
-
-		return results;
-	}
-
-	internal static IEnumerable<string> Push(AbsoluteDirectoryPath repo)
-	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("push")
-			.AddArgument("-v")
-			.InvokeAndReturnOutput(PowershellStreams.All);
-
-		return results;
-	}
-
+	/// <summary>
+	/// Gets the short status of a single file. An empty result means the file is unmodified, which
+	/// is how callers decide whether committing is safe.
+	/// </summary>
 	internal static IEnumerable<string> Status(AbsoluteDirectoryPath repo, AbsoluteFilePath filePath)
 	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("status")
-			.AddArgument("--short")
-			.AddArgument("--")
-			.AddArgument(filePath.ToString())
-			.InvokeAndReturnOutput(PowershellStreams.All);
+		CommandResult result = GitCli.Run(repo, "status", "--short", "--", filePath.ToString());
 
-		return results;
+		// Standard output alone on success: git reports line-ending conversions as warnings on
+		// standard error, and counting one of those as a modification would block the commit.
+		// On failure fall back to both streams so the result is non-empty and the caller still
+		// treats the file as unsafe to commit rather than assuming it is clean.
+		return result.Succeeded ? result.OutputLines : result.AllLines;
 	}
 
-	internal static IEnumerable<string> Unstage(AbsoluteDirectoryPath repo)
-	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("restore")
-			.AddArgument("--staged")
-			.AddArgument(repo.ToString())
-			.InvokeAndReturnOutput(PowershellStreams.All);
+	internal static IEnumerable<string> Unstage(AbsoluteDirectoryPath repo) =>
+		GitCli.Run(repo, "restore", "--staged", repo.ToString()).AllLines;
 
-		return results;
-	}
+	internal static IEnumerable<string> Add(AbsoluteDirectoryPath repo, AbsoluteFilePath filePath) =>
+		GitCli.Run(repo, "add", filePath.ToString()).AllLines;
 
-	internal static IEnumerable<string> Add(AbsoluteDirectoryPath repo, AbsoluteFilePath filePath)
-	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("add")
-			.AddArgument(filePath.ToString())
-			.InvokeAndReturnOutput(PowershellStreams.All);
-
-		return results;
-	}
-
-	internal static IEnumerable<string> Commit(AbsoluteDirectoryPath repo, string message)
-	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("commit")
-			.AddParameter("-m", message)
-			.InvokeAndReturnOutput(PowershellStreams.All);
-
-		return results;
-	}
+	internal static IEnumerable<string> Commit(AbsoluteDirectoryPath repo, string message) =>
+		GitCli.Run(repo, "commit", "-m", message).AllLines;
 
 	internal static string GetCurrentBranch(AbsoluteDirectoryPath repo)
 	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("rev-parse")
-			.AddArgument("--abbrev-ref")
-			.AddArgument("HEAD")
-			.InvokeAndReturnOutput(PowershellStreams.All);
+		CommandResult result = GitCli.Run(repo, "rev-parse", "--abbrev-ref", "HEAD");
 
-		return results.FirstOrDefault() ?? "unknown";
+		return result.Succeeded && result.OutputText.Length > 0 ? result.OutputText : "unknown";
 	}
 
 	internal static string GetStatusSummary(AbsoluteDirectoryPath repo)
 	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("status")
-			.AddArgument("--porcelain")
-			.InvokeAndReturnOutput(PowershellStreams.All);
+		CommandResult result = GitCli.Run(repo, "status", "--porcelain");
+		if (!result.Succeeded)
+		{
+			return "unknown";
+		}
 
+		Collection<string> results = result.OutputLines;
 		if (results.Count == 0)
 		{
 			return "clean";
 		}
 
+		// The status codes occupy two columns, but the lines have been trimmed, so a leading space
+		// is gone and each state has to be recognised in both its staged and unstaged spelling.
 		int modified = results.Count(s => s.StartsWith(" M") || s.StartsWith("M "));
 		int added = results.Count(s => s.StartsWith("A ") || s.StartsWith("??"));
 		int deleted = results.Count(s => s.StartsWith(" D") || s.StartsWith("D "));
@@ -217,23 +127,11 @@ internal static class Git
 	/// </summary>
 	internal static string? GetUpstreamBranch(AbsoluteDirectoryPath repo)
 	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("rev-parse")
-			.AddArgument("--abbrev-ref")
-			.AddArgument("--symbolic-full-name")
-			.AddArgument("@{upstream}")
-			.InvokeAndReturnOutput(PowershellStreams.All);
+		// git exits non-zero when there is no upstream, so the exit code answers this directly
+		// rather than having to sniff the message for "fatal".
+		CommandResult result = GitCli.Run(repo, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}");
 
-		string? result = results.FirstOrDefault()?.Trim();
-		return string.IsNullOrWhiteSpace(result)
-			|| result.Contains("fatal", StringComparison.OrdinalIgnoreCase)
-			|| result.Contains("error", StringComparison.OrdinalIgnoreCase)
-			? null
-			: result;
+		return result.Succeeded && result.OutputText.Length > 0 ? result.OutputText : null;
 	}
 
 	/// <summary>
@@ -257,22 +155,8 @@ internal static class Git
 	/// <summary>
 	/// Determines whether the given fully-qualified ref exists in the repository.
 	/// </summary>
-	internal static bool RefExists(AbsoluteDirectoryPath repo, string reference)
-	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("rev-parse")
-			.AddArgument("--verify")
-			.AddArgument("--quiet")
-			.AddArgument(reference)
-			.InvokeAndReturnOutput(PowershellStreams.All);
-
-		return results.Any(s => !string.IsNullOrWhiteSpace(s)
-			&& !s.Contains("fatal", StringComparison.OrdinalIgnoreCase));
-	}
+	internal static bool RefExists(AbsoluteDirectoryPath repo, string reference) =>
+		GitCli.Run(repo, "rev-parse", "--verify", "--quiet", reference).Succeeded;
 
 	/// <summary>
 	/// Counts how many commits <paramref name="headRef"/> is ahead and behind
@@ -280,18 +164,13 @@ internal static class Git
 	/// </summary>
 	internal static (int Ahead, int Behind)? GetAheadBehind(AbsoluteDirectoryPath repo, string baseRef, string headRef)
 	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("rev-list")
-			.AddArgument("--left-right")
-			.AddArgument("--count")
-			.AddArgument($"{baseRef}...{headRef}")
-			.InvokeAndReturnOutput(PowershellStreams.All);
+		CommandResult result = GitCli.Run(repo, "rev-list", "--left-right", "--count", $"{baseRef}...{headRef}");
+		if (!result.Succeeded)
+		{
+			return null;
+		}
 
-		string? line = results.FirstOrDefault()?.Trim();
+		string? line = result.OutputLines.FirstOrDefault();
 		if (string.IsNullOrWhiteSpace(line))
 		{
 			return null;
@@ -322,19 +201,8 @@ internal static class Git
 	/// </summary>
 	internal static bool HasUntrackedFiles(AbsoluteDirectoryPath repo) => GetUntrackedFiles(repo).Count > 0;
 
-	private static IReadOnlyList<string> GetUntrackedFiles(AbsoluteDirectoryPath repo)
-	{
-		using PowerShell ps = PowerShell.Create();
-		return [.. ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("ls-files")
-			.AddArgument("--others")
-			.AddArgument("--exclude-standard")
-			.InvokeAndReturnOutput(PowershellStreams.All)
-			.Where(s => !string.IsNullOrWhiteSpace(s))];
-	}
+	private static Collection<string> GetUntrackedFiles(AbsoluteDirectoryPath repo) =>
+		GitCli.Run(repo, "ls-files", "--others", "--exclude-standard").OutputLines;
 
 	/// <summary>
 	/// Gets the complete, untruncated working-tree diff against HEAD (staged + unstaged changes
@@ -342,19 +210,10 @@ internal static class Git
 	/// <see cref="GetDiffStat"/> instead. Budgeting/truncation is handled separately by
 	/// <see cref="Llm.DiffBudget"/> so it can drop whole files rather than clip a diff mid-file.
 	/// </summary>
-	internal static string GetFullDiff(AbsoluteDirectoryPath repo)
-	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("diff")
-			.AddArgument("HEAD")
-			.InvokeAndReturnOutput(PowershellStreams.All);
-
-		return string.Join(Environment.NewLine, results);
-	}
+	internal static string GetFullDiff(AbsoluteDirectoryPath repo) =>
+		// Returned verbatim rather than as trimmed lines. A diff carries meaning in its leading
+		// column: context lines begin with a space, and trimming them away corrupts the diff.
+		GitCli.Run(repo, "diff", "HEAD").Output;
 
 	/// <summary>
 	/// Gets the <c>git diff HEAD --stat</c> summary, with untracked file names appended so the
@@ -362,19 +221,9 @@ internal static class Git
 	/// </summary>
 	internal static string GetDiffStat(AbsoluteDirectoryPath repo)
 	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("diff")
-			.AddArgument("HEAD")
-			.AddArgument("--stat")
-			.InvokeAndReturnOutput(PowershellStreams.All);
+		string stat = string.Join(Environment.NewLine, GitCli.Run(repo, "diff", "HEAD", "--stat").OutputLines);
 
-		string stat = string.Join(Environment.NewLine, results);
-
-		IReadOnlyList<string> untracked = GetUntrackedFiles(repo);
+		Collection<string> untracked = GetUntrackedFiles(repo);
 		if (untracked.Count > 0)
 		{
 			stat += $"{Environment.NewLine}Untracked: {string.Join(", ", untracked)}";
@@ -383,15 +232,6 @@ internal static class Git
 		return stat;
 	}
 
-	internal static IEnumerable<string> StageAll(AbsoluteDirectoryPath repo)
-	{
-		using PowerShell ps = PowerShell.Create();
-		return ps
-			.AddCommand("git")
-			.AddArgument("-C")
-			.AddArgument(repo.ToString())
-			.AddArgument("add")
-			.AddArgument("-A")
-			.InvokeAndReturnOutput(PowershellStreams.All);
-	}
+	internal static IEnumerable<string> StageAll(AbsoluteDirectoryPath repo) =>
+		GitCli.Run(repo, "add", "-A").AllLines;
 }

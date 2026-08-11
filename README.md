@@ -18,8 +18,7 @@ A powerful C# console application for performing batch operations across multipl
 ## Requirements
 
 - .NET 10.0 SDK or later
-- PowerShell Core (cross-platform)
-- Git
+- Git (and Git LFS, if any of your repositories track binaries with it)
 - An OpenAI API key (only required for the AI commit message feature)
 
 ## Installation
