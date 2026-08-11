@@ -38,7 +38,7 @@ dotnet test
 dotnet test --filter "FullyQualifiedName~CommitMessageGeneratorTests"
 ```
 
-Tests live in `CrossRepoActions.Test` (MSTest, via `MSTest.Sdk` + `ktsu.Sdk`). The app exposes its internals to the test project through `InternalsVisibleTo` in `CrossRepoActions/AssemblyInfo.cs`. The pure, logic-heavy `CommitMessageGenerator` is unit-tested with a fake `ILlmService`; thin PowerShell/Semantic Kernel wrappers are not unit-tested.
+Tests live in `CrossRepoActions.Test` (MSTest, via `MSTest.Sdk` + `ktsu.Sdk`). The app exposes its internals to the test project through `InternalsVisibleTo` in `CrossRepoActions/AssemblyInfo.cs`. The pure, logic-heavy `CommitMessageGenerator` is unit-tested with a fake `ILlmService`. `GitTests` drives the real `Git` API against throwaway repositories under the temp directory, covering the Git LFS guarantee and the exit-code-driven queries; the Semantic Kernel wrapper (network I/O) is not unit-tested.
 
 ## Architecture
 
@@ -67,17 +67,18 @@ The application uses a **verb-based command architecture** powered by CommandLin
   - `CommitMessageGenerator`: Pure prompt-building + response-cleaning over `ILlmService` (unit-tested)
   - `LlmSettings`: Persisted OpenAI settings (ApiKey, Model, OrganizationId, MaxDiffChars)
 - **PersistentState.cs**: App data storage for caching discovered repos/solutions and `LlmSettings` (uses ktsu.AppDataStorage)
-- **Git.cs**: Git operations wrapper using PowerShell automation (incl. full-diff/stage/untracked helpers)
-- **Dotnet.cs**: .NET CLI operations wrapper using PowerShell automation
+- **Git.cs**: Git operations wrapper over the git command line (incl. full-diff/stage/untracked helpers)
+- **Dotnet.cs**: .NET CLI operations wrapper over the dotnet command line
 - **Solution.cs**: Data model representing a solution with projects, packages, and dependencies
-- **PowershellExtensions.cs**: Extension methods for PowerShell invocation
+- **Cli.cs**: `CommandResult` plus the process runner both wrappers sit on, built on `ktsu.RunCommand`
+- **GitCli.cs**: Thin git-specific facade over `Cli` that applies `-C <repo>`
 - **AssemblyInfo.cs**: Assembly attributes, including `InternalsVisibleTo` for the test project
 
 ### Key Patterns
 
 1. **Dynamic Verb Discovery**: All verb types are automatically discovered via reflection from `[Verb]` attributes. Adding a new verb class automatically adds it to the menu.
 
-2. **PowerShell Integration**: Both Git and Dotnet operations use `System.Management.Automation.PowerShell` for command execution, with custom extensions for output capture (PowershellExtensions.cs:18).
+2. **Command Line Integration**: Both Git and Dotnet operations start a process through `ktsu.RunCommand`, passing each argument separately so paths containing spaces need no quoting (Cli.cs). This replaced hosting the PowerShell SDK, which cost a large dependency for what amounts to starting a process. For git it is also a correctness requirement rather than a preference: Git LFS is a clean filter plus a set of hooks, both of which belong to the git command, so anything writing objects by another route commits raw bytes in place of pointers.
 
 3. **Caching**: Repository and solution discovery results are cached in persistent app data to avoid repeated expensive file system scans. Cache is cleared when running `DiscoverRepositories` verb.
 
@@ -113,7 +114,6 @@ The `.github/workflows/dotnet.yml` workflow orchestrates:
 - **Key Dependencies**:
   - CommandLineParser: CLI argument parsing
   - ConsoleTools (DustInTheWind): Interactive menus and spinners
-  - Microsoft.PowerShell.SDK / System.Management.Automation: PowerShell automation
   - Microsoft.SemanticKernel (+ Connectors.OpenAI, Abstractions, Core): remote LLM integration
   - ktsu.Semantics.Paths / ktsu.Semantics.Strings: strongly-typed paths and strings
   - ktsu.AppDataStorage: Persistent state management
@@ -133,10 +133,11 @@ The `.github/workflows/dotnet.yml` workflow orchestrates:
 5. The verb will automatically appear in the interactive menu
 
 ### Working with Git/Dotnet Operations
-- All operations use PowerShell for cross-platform consistency
-- Git operations use `-C` flag to operate on remote directories without changing process CWD
-- Dotnet operations capture both stdout and stderr using custom extensions
-- Error detection looks for "error" or "failed" in output (Dotnet.cs:274)
+- All operations start a process via `ktsu.RunCommand`, with arguments passed as a list rather than a command string
+- Git operations use the `-C` flag to target a repository without changing the process working directory, which keeps parallel repository processing safe
+- `CommandResult` exposes the streams three ways, and the choice matters: `AllLines` merges stdout and stderr (transfer commands such as `git fetch -v` report everything on stderr, and callers scan for conflict and rejection markers), `OutputLines` is stdout alone (porcelain and JSON parsing, which stderr warnings would corrupt), and `Output` is verbatim (diffs, whose leading column carries meaning)
+- Queries that can legitimately have no answer — no upstream, no such ref — are decided by git's exit code rather than by searching its output for "fatal"
+- Error detection looks for "error" or "failed" in output (`Dotnet.GetErrors`)
 
 ### Persistent State
 - Stored using ktsu.AppDataStorage in platform-specific app data directory

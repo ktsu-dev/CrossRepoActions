@@ -1,6 +1,4 @@
-// Copyright (c) ktsu.dev
-// All rights reserved.
-// Licensed under the MIT license.
+// Copyright (c) 2023-2026 ktsu-dev contributors
 
 namespace ktsu.CrossRepoActions;
 
@@ -8,7 +6,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Management.Automation;
 using System.Text.Json.Nodes;
 
 using DustInTheWind.ConsoleTools.Controls.Spinners;
@@ -21,55 +18,20 @@ using NuGet.Versioning;
 
 internal static class Dotnet
 {
-	internal static Collection<string> BuildSolution()
-	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("dotnet")
-			.AddArgument("build")
-			.AddArgument("--nologo")
-			.InvokeAndReturnOutput();
+	// These two run against whatever the process working directory is, which BuildAndTest sets per
+	// solution before calling in. A started process inherits it, exactly as the PowerShell host did.
+	internal static Collection<string> BuildSolution() =>
+		GetErrors(Cli.Run("dotnet", "build", "--nologo").AllLines);
 
-		return GetErrors(results);
-	}
+	internal static Collection<string> BuildProject(AbsoluteFilePath projectFile) =>
+		GetErrors(Cli.Run("dotnet", "build", "--nologo", projectFile.ToString()).AllLines);
 
-	internal static Collection<string> BuildProject(AbsoluteFilePath projectFile)
-	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("dotnet")
-			.AddArgument("build")
-			.AddArgument("--nologo")
-			.AddArgument(projectFile.ToString())
-			.InvokeAndReturnOutput();
-
-		return GetErrors(results);
-	}
-
-	internal static Collection<string> RunTests()
-	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("dotnet")
-			.AddArgument("vstest")
-			.AddArgument("**/bin/**/*Test.dll")
-			.AddArgument("/logger:console;verbosity=normal")
-			.AddArgument("--nologo")
-			.InvokeAndReturnOutput(PowershellStreams.All);
-
-		return results;
-	}
+	internal static Collection<string> RunTests() =>
+		Cli.Run("dotnet", "vstest", "**/bin/**/*Test.dll", "/logger:console;verbosity=normal", "--nologo").AllLines;
 
 	internal static Collection<string> GetTests()
 	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("dotnet")
-			.AddArgument("vstest")
-			.AddArgument("--ListTests")
-			.AddArgument("--nologo")
-			.AddArgument("**/bin/**/*Test.dll")
-			.InvokeAndReturnOutput();
+		Collection<string> results = Cli.Run("dotnet", "vstest", "--ListTests", "--nologo", "**/bin/**/*Test.dll").AllLines;
 
 		Collection<string> stringResults = results
 			.Where(r => !r.StartsWith("The following") && !r.StartsWith("No test source"))
@@ -80,13 +42,7 @@ internal static class Dotnet
 
 	internal static Collection<string> GetProjects(AbsoluteFilePath solutionFile)
 	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("dotnet")
-			.AddArgument("sln")
-			.AddArgument(solutionFile.ToString())
-			.AddArgument("list")
-			.InvokeAndReturnOutput();
+		Collection<string> results = Cli.Run("dotnet", "sln", solutionFile.ToString(), "list").OutputLines;
 
 		Collection<string> stringResults = results
 			.Where(r => r.EndsWithOrdinal(".csproj"))
@@ -97,14 +53,7 @@ internal static class Dotnet
 
 	internal static Collection<Package> GetSolutionDependencies(AbsoluteFilePath solutionFile)
 	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("dotnet")
-			.AddArgument("list")
-			.AddArgument(solutionFile.ToString())
-			.AddArgument("package")
-			.AddArgument("--include-transitive")
-			.InvokeAndReturnOutput();
+		Collection<string> results = Cli.Run("dotnet", "list", solutionFile.ToString(), "package", "--include-transitive").OutputLines;
 
 		Collection<string> stringResults = results
 			.Where(r => r.StartsWithOrdinal(">"))
@@ -127,15 +76,9 @@ internal static class Dotnet
 
 	internal static Collection<Package> GetOutdatedProjectDependencies(AbsoluteFilePath projectFile)
 	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> jsonResult = ps
-			.AddCommand("dotnet")
-			.AddArgument("list")
-			.AddArgument(projectFile.ToString())
-			.AddArgument("package")
-			.AddArgument("--outdated")
-			.AddArgument("--format=json")
-			.InvokeAndReturnOutput();
+		// Standard output alone: this is parsed as JSON, and any diagnostic mixed into it would
+		// make the document unparseable.
+		Collection<string> jsonResult = Cli.Run("dotnet", "list", projectFile.ToString(), "package", "--outdated", "--format=json").OutputLines;
 
 		string jsonString = string.Join("", jsonResult);
 
@@ -198,86 +141,40 @@ internal static class Dotnet
 		return packages;
 	}
 
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "False positive: we're using a using declaration")]
 	internal static Collection<string> UpdatePackages(AbsoluteFilePath projectFile, IEnumerable<Package> packages)
 	{
 		Collection<string> output = [];
 		foreach (Package package in packages)
 		{
 			bool isPreRelease = NuGetVersion.Parse(package.Version).IsPrerelease;
-			using PowerShell ps = PowerShell.Create();
-			if (isPreRelease)
-			{
-				Collection<string> results = ps
-					.AddCommand("dotnet")
-					.AddArgument("add")
-					.AddArgument(projectFile.ToString())
-					.AddArgument("package")
-					.AddArgument(package.Name)
-					.AddArgument("--prerelease")
-					.InvokeAndReturnOutput();
-				output.AddFrom(results);
-			}
-			else
-			{
-				Collection<string> results = ps
-				.AddCommand("dotnet")
-				.AddArgument("add")
-				.AddArgument(projectFile.ToString())
-				.AddArgument("package")
-				.AddArgument(package.Name)
-				.InvokeAndReturnOutput();
-				output.AddFrom(results);
-			}
+			string[] arguments = isPreRelease
+				? ["add", projectFile.ToString(), "package", package.Name, "--prerelease"]
+				: ["add", projectFile.ToString(), "package", package.Name];
+
+			output.AddFrom(Cli.Run("dotnet", arguments).AllLines);
 		}
 
 		return output;
 	}
 
-	internal static string GetProjectAssemblyName(AbsoluteFilePath projectFile)
+	internal static string GetProjectAssemblyName(AbsoluteFilePath projectFile) =>
+		GetProjectProperty(projectFile, "AssemblyName");
+
+	internal static string GetProjectVersion(AbsoluteFilePath projectFile) =>
+		GetProjectProperty(projectFile, "Version");
+
+	internal static bool IsProjectPackable(AbsoluteFilePath projectFile) =>
+		bool.TryParse(GetProjectProperty(projectFile, "IsPackable"), out bool isPackable) && isPackable;
+
+	/// <summary>
+	/// Reads a single evaluated MSBuild property from a project. Returns an empty string when the
+	/// evaluation fails, which callers treat as the property being absent.
+	/// </summary>
+	private static string GetProjectProperty(AbsoluteFilePath projectFile, string propertyName)
 	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("dotnet")
-			.AddArgument("msbuild")
-			.AddArgument(projectFile.ToString())
-			.AddArgument("-getProperty:AssemblyName")
-			.InvokeAndReturnOutput();
+		CommandResult result = Cli.Run("dotnet", "msbuild", projectFile.ToString(), $"-getProperty:{propertyName}");
 
-		return results.First();
-	}
-
-	internal static string GetProjectVersion(AbsoluteFilePath projectFile)
-	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("dotnet")
-			.AddArgument("msbuild")
-			.AddArgument(projectFile.ToString())
-			.AddArgument("-getProperty:Version")
-			.InvokeAndReturnOutput();
-
-		return results.First();
-	}
-
-	internal static bool IsProjectPackable(AbsoluteFilePath projectFile)
-	{
-		using PowerShell ps = PowerShell.Create();
-		Collection<string> results = ps
-			.AddCommand("dotnet")
-			.AddArgument("msbuild")
-			.AddArgument(projectFile.ToString())
-			.AddArgument("-getProperty:IsPackable")
-			.InvokeAndReturnOutput();
-
-		try
-		{
-			return bool.Parse(results.First());
-		}
-		catch (FormatException)
-		{
-			return false;
-		}
+		return result.Succeeded ? result.OutputText : string.Empty;
 	}
 
 	internal static Package GetProjectPackage(AbsoluteFilePath projectFile)
