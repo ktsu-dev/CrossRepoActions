@@ -22,6 +22,6 @@
          PackageVersion for every extension it references. Declaring them here duplicates those
          entries and fails restore with NU1506. -->
     <PackageVersion Include="NuGet.Versioning" Version="7.9.0" />
-    <PackageVersion Include="Polyfill" Version="11.0.2" />
+    <PackageVersion Include="Polyfill" Version="11.2.0" />
   </ItemGroup>
 </Project>
