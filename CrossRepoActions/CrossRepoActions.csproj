@@ -27,7 +27,7 @@
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" />
     <PackageReference Include="Microsoft.SemanticKernel.Core" />
     <PackageReference Include="NuGet.Versioning" />
-    <PackageReference Include="Polyfill" />
+    <PackageReference Include="Polyfill" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>
