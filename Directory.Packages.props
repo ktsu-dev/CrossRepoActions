@@ -15,9 +15,9 @@
     <PackageVersion Include="ktsu.Semantics.Paths" Version="3.0.0" />
     <PackageVersion Include="ktsu.Semantics.Strings" Version="3.0.0" />
     <PackageVersion Include="Microsoft.SemanticKernel" Version="1.79.0" />
-    <PackageVersion Include="Microsoft.SemanticKernel.Abstractions" Version="1.79.0" />
-    <PackageVersion Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.79.0" />
-    <PackageVersion Include="Microsoft.SemanticKernel.Core" Version="1.79.0" />
+    <PackageVersion Include="Microsoft.SemanticKernel.Abstractions" Version="1.80.0" />
+    <PackageVersion Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.80.0" />
+    <PackageVersion Include="Microsoft.SemanticKernel.Core" Version="1.80.0" />
     <!-- Microsoft.Testing.Extensions.* versions are owned by MSTest.Sdk, which injects a matching
          PackageVersion for every extension it references. Declaring them here duplicates those
          entries and fails restore with NU1506. -->
