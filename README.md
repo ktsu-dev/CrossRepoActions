@@ -5,7 +5,7 @@ A powerful C# console application for performing batch operations across multipl
 [![License](https://img.shields.io/github/license/ktsu-dev/CrossRepoActions.svg?label=License&logo=nuget)](LICENSE.md)
 [![GitHub commit activity](https://img.shields.io/github/commit-activity/m/ktsu-dev/CrossRepoActions?label=Commits&logo=github)](https://github.com/ktsu-dev/CrossRepoActions/commits/main)
 [![GitHub contributors](https://img.shields.io/github/contributors/ktsu-dev/CrossRepoActions?label=Contributors&logo=github)](https://github.com/ktsu-dev/CrossRepoActions/graphs/contributors)
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ktsu-dev/CrossRepoActions/dotnet.yml?label=Build&logo=github)](https://github.com/ktsu-dev/CrossRepoActions/actions)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ktsu-dev/CrossRepoActions/dotnet.yml?branch=main&label=Build&logo=github)](https://github.com/ktsu-dev/CrossRepoActions/actions)
 
 ## Features
 
