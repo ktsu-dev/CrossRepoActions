@@ -2,6 +2,11 @@
 
 A powerful C# console application for performing batch operations across multiple git repositories and .NET solutions. CrossRepoActions helps you manage an entire organization's codebase efficiently with an interactive menu-driven interface.
 
+[![License](https://img.shields.io/github/license/ktsu-dev/CrossRepoActions.svg?label=License&logo=nuget)](LICENSE.md)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/ktsu-dev/CrossRepoActions?label=Commits&logo=github)](https://github.com/ktsu-dev/CrossRepoActions/commits/main)
+[![GitHub contributors](https://img.shields.io/github/contributors/ktsu-dev/CrossRepoActions?label=Contributors&logo=github)](https://github.com/ktsu-dev/CrossRepoActions/graphs/contributors)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ktsu-dev/CrossRepoActions/dotnet.yml?label=Build&logo=github)](https://github.com/ktsu-dev/CrossRepoActions/actions)
+
 ## Features
 
 - **Repository Discovery**: Automatically discover all git repositories in a directory tree
