@@ -1,7 +1,7 @@
-## v1.6.5 (patch)
+## v1.6.6 (patch)
 
-Changes since v1.6.4:
+Changes since v1.6.5:
 
-- Bump the microsoft group with 3 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump the ktsu group with 3 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- docs: scope build badge to the default branch ([@matt-edmondson](https://github.com/matt-edmondson))
+- docs: correct README, DESCRIPTION and TAGS metadata ([@matt-edmondson](https://github.com/matt-edmondson))
 
