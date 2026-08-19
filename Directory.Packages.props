@@ -9,11 +9,11 @@
     <PackageVersion Include="ConsoleTools.Controls.Menus" Version="1.2.1" />
     <PackageVersion Include="ConsoleTools.Controls.Spinners" Version="1.2.1" />
     <PackageVersion Include="ConsoleTools.Core" Version="1.2.1" />
-    <PackageVersion Include="ktsu.AppDataStorage" Version="1.16.37" />
-    <PackageVersion Include="ktsu.Extensions" Version="1.6.2" />
-    <PackageVersion Include="ktsu.RunCommand" Version="1.4.28" />
-    <PackageVersion Include="ktsu.Semantics.Paths" Version="3.0.0" />
-    <PackageVersion Include="ktsu.Semantics.Strings" Version="3.0.0" />
+    <PackageVersion Include="ktsu.AppDataStorage" Version="1.16.38" />
+    <PackageVersion Include="ktsu.Extensions" Version="1.6.3" />
+    <PackageVersion Include="ktsu.RunCommand" Version="1.5.0" />
+    <PackageVersion Include="ktsu.Semantics.Paths" Version="3.1.0" />
+    <PackageVersion Include="ktsu.Semantics.Strings" Version="3.1.0" />
     <PackageVersion Include="Microsoft.SemanticKernel" Version="1.79.0" />
     <PackageVersion Include="Microsoft.SemanticKernel.Abstractions" Version="1.80.0" />
     <PackageVersion Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.80.0" />
