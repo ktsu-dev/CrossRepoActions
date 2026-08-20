@@ -1,5 +1,15 @@
 # CrossRepoActions
 
+> [!WARNING]
+> **This repository is archived and no longer maintained.**
+>
+> Its functionality has moved to **[ktsu-dev/KtsuTools](https://github.com/ktsu-dev/KtsuTools)**, where it lives as the `ktsu repo` command group (`discover`, `build`, `pull`, `update-packages`) plus `ktsu sync` for file-content syncing.
+>
+> A parity audit is recorded in [KtsuTools#8](https://github.com/ktsu-dev/KtsuTools/issues/8). Two features were deliberately not ported: the interactive menu mode, and the PowerShell-Core-driven step layer. Everything else carried across, and the remaining backlog was migrated to KtsuTools issues [#121](https://github.com/ktsu-dev/KtsuTools/issues/121), [#122](https://github.com/ktsu-dev/KtsuTools/issues/122), [#123](https://github.com/ktsu-dev/KtsuTools/issues/123) and [#124](https://github.com/ktsu-dev/KtsuTools/issues/124).
+>
+> This code was never published to nuget.org. It remains readable here for reference.
+
+
 A powerful C# console application for performing batch operations across multiple git repositories and .NET solutions. CrossRepoActions helps you manage an entire organization's codebase efficiently with an interactive menu-driven interface.
 
 [![License](https://img.shields.io/github/license/ktsu-dev/CrossRepoActions.svg?label=License&logo=nuget)](LICENSE.md)
